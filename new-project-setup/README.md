@@ -1,104 +1,81 @@
 # new-project-setup
 
-새 저장소(또는 아직 Claude 설정이 없는 저장소)에 Claude Code 작업 기반을 설치하는 skill입니다.
+새 저장소에서 `/new-project-setup`을 한 번 실행하면 Claude Code가 그 저장소에서 일할 기본 틀을 깔아 줍니다. 테스트 명령을 찾아 실제로 돌려 보고, 짧은 CLAUDE.md와 권한 규칙, 작업이 끝날 때 테스트를 돌리는 hook을 만듭니다.
+
+혼자 쓰는 작은 npm 저장소에 돌렸을 때 생긴 파일입니다.
 
 ```
-/new-project-setup            # 저장소를 보고 설치 방식을 묻는다
-/new-project-setup commit     # 팀과 공유할 파일로 설치 (CLAUDE.md, .claude/settings.json)
-/new-project-setup local      # 나만 쓰는 파일로 설치 (.claude/settings.local.json, git에서 제외)
+CLAUDE.md
+.worktreeinclude
+.claude/settings.json            # 비밀 파일 읽기·force push 차단, git push는 확인
+.claude/hooks/check-on-stop.mjs  # 작업이 끝날 때 npm test 실행
+.claude/hooks/check-on-stop.json
+.claude/skills/verify/SKILL.md   # 완료 보고 전에 따를 검증 절차
+.claude/agents/reviewer.md       # 읽기만 하는 리뷰어
 ```
 
-## 왜 만들었나
+CLAUDE.md는 이게 전부입니다. 아키텍처 설명 같은 건 Claude가 코드를 읽으면 알 수 있어서 넣지 않았습니다.
 
-Claude Code로 일할 때 결과를 좌우하는 건 프롬프트보다 두 가지였습니다.
+```markdown
+# Commands
+- 전체 검증: `npm test`
+- 테스트 하나만: `node --test test/sum.test.js`
 
-1. **"끝났다"를 판정할 수단이 있는가.** 테스트나 빌드처럼 통과·실패가 나오는 검사가 없으면 Claude는 "그럴듯해 보이는" 상태에서 멈추고, 사람이 테스트 역할을 하게 됩니다.
-2. **꼭 지켜야 하는 규칙이 강제되는가.** CLAUDE.md에 적은 규칙은 모델이 판단해서 따르는 것이라 거의 지켜지지만 항상은 아닙니다. 비밀 파일 읽기 금지나 force push 금지처럼 예외가 없어야 하는 규칙은 설정(권한 규칙, hook)으로 옮겨야 합니다.
+# Gotchas
 
-저장소를 새로 만들 때마다 이걸 손으로 맞추는 대신, 저장소를 조사해서 필요한 것만 깔아 주는 절차를 skill로 만들었습니다.
+# Working style
+- 입력이 필요 없으면 계속 진행하고, 상태 보고는 다음 작업과 같은 메시지에 쓴다.
+- 데이터 삭제, force push, 저장소 밖 변경 전에만 멈추고 묻는다.
+```
 
-## 무엇을 설치하나
+그 뒤 Claude가 코드를 고치다 테스트를 깨뜨린 채 작업을 끝내면, hook이 테스트를 돌려 이렇게 알려 줍니다.
 
-| 파일 | 역할 |
-|---|---|
-| `CLAUDE.md` (commit 모드) | 검증 명령, 실제로 확인한 단일 테스트 명령, 빈 Gotchas, "언제 멈추고 물을지" 두 줄. 아키텍처 설명은 쓰지 않는다 |
-| `.claude/settings.json` 또는 `settings.local.json` | 비밀 파일 읽기와 파괴적 git 명령 deny, `git push` ask, Stop hook 등록 |
-| `.claude/hooks/check-on-stop.mjs` + `.json` | Claude가 턴을 끝낼 때 코드가 바뀌었으면 검증 명령을 실행하는 hook |
-| `.claude/skills/verify/SKILL.md` | 완료를 보고하기 전에 따를 검증 절차 (전체 검사, 관련 테스트, 실행 확인, 보고 형식) |
-| `.claude/agents/reviewer.md` | `Read, Grep, Glob`만 가진 읽기 전용 리뷰어. 저장소에서 확인된 불변식만 담는다 |
-| `REVIEW.md`, `.worktreeinclude` | 조건이 맞을 때만 (불변식이 있을 때, gitignore된 작은 설정 파일이 있을 때) |
+```
+[check-on-stop 관찰 모드] `npm test` 실패(exit 1) — 막지 않음: ✖ sum (0.9785ms)
+```
 
-검증 명령을 고르고 실행 시간을 잰 뒤, 60초 이하면 Stop hook에, 넘으면 verify skill에만 넣습니다. 저장소에 아직 테스트가 없으면 지침과 권한만 깔고 나중에 다시 실행하라고 안내합니다.
+## 사용법
 
-## 설계 판단
+```
+git clone https://github.com/gumwoo/claude-skills.git
+cp -r claude-skills/new-project-setup ~/.claude/skills/
+```
 
-**모델이 판단할 것과 설정이 강제할 것을 나눈다.**
-작업 방식이나 스타일 같은 건 CLAUDE.md에 두고 Claude가 판단하게 합니다. 비밀 파일, 파괴적 git, 저장소 지침에 "하지 않는다"로 적힌 것만 deny로 옮기고, "승인 없이 하지 않는다"는 ask로 옮깁니다. 지침에 실제로 나오는 명령만 패턴으로 만들고, 추측이 필요한 패턴(예: 어떤 DB 클라이언트인지 모를 때)은 넣지 않습니다.
+설정하려는 저장소에서 Claude Code를 열고 실행합니다.
 
-**hook은 막지 않는 것부터 시작한다.**
-Stop hook은 세 가지 모드가 있습니다.
+```
+/new-project-setup          # 저장소를 보고 어떻게 설치할지 묻는다
+/new-project-setup commit   # 팀과 공유: CLAUDE.md와 .claude/settings.json으로
+/new-project-setup local    # 나만 사용: 모든 파일을 .claude/ 아래 두고 git에서 제외
+```
 
-| mode | 동작 |
-|---|---|
-| `observe` (기본) | 실패해도 막지 않고 사용자에게만 경고를 보이고 로그에 남긴다 |
-| `enforce` | 실패하면 Claude에게 피드백을 돌려보내 계속 고치게 한다. 같은 턴에서 3회 실패하면 더 막지 않고 사람에게 넘긴다 |
-| `off` | 아무것도 하지 않는다 |
+git, Node.js가 필요합니다. 커밋, push, 앱 실행은 하지 않습니다. 저장소를 살펴보는 읽기 명령 말고 실제로 돌리는 건 테스트·빌드 같은 검사 명령뿐이고, 그것도 DB나 외부 서비스에 붙는지 먼저 확인합니다.
 
-처음부터 막으면 리팩터링 도중처럼 일부러 깨진 상태로 멈추고 싶을 때도 Claude가 되돌아가 고치려 합니다. 그래서 observe로 시작해 로그로 오탐을 보고 enforce로 올리게 했습니다. 실패 피드백은 hook 오류가 아니라 `additionalContext`(Stop hook feedback)로 보내고, 같은 변경 상태로는 검사를 다시 돌리지 않도록 캐시합니다. 꼭 통과시켜야 하는 작업은 세션 단위로 `/goal`을 쓰도록 안내합니다.
+## 왜 이렇게 만들었나
 
-**팀 저장소에는 흔적을 남기지 않는다.**
-작성자가 여러 명이거나 사내 Git이면 local 모드를 추천합니다. 모든 파일을 `.claude/` 아래 두고 `.git/info/exclude`로 git에서 뺍니다. 빌드 도구가 PATH에 없어 이 PC 전용 절대 경로가 필요하면 그 경로는 `check-on-stop.local.json`에만 쓰고, 저장소에 남는 파일에는 원래 명령(`mvn test` 등)을 씁니다.
+Claude Code로 일해 보면 결과를 가르는 건 프롬프트보다 두 가지였습니다. 끝났는지 확인할 수단이 있는지, 그리고 꼭 지켜야 하는 규칙이 강제되는지입니다. 테스트가 없으면 Claude는 "될 것 같은" 상태에서 멈추고 결국 사람이 테스트 역할을 합니다. CLAUDE.md에 "`.env`를 읽지 마라"라고 써 두면 대부분 지키지만 항상 지키지는 않습니다. 그래서 확인 수단은 hook으로, 예외가 없어야 하는 규칙은 권한 설정으로 옮기는 걸 저장소마다 반복하지 않도록 skill로 만들었습니다.
 
-**AGENTS.md만 있는 저장소를 건드리지 않는다.**
-Claude Code는 CLAUDE.md나 CLAUDE.local.md가 없을 때만 AGENTS.md를 읽습니다. 그래서 local 모드에서 CLAUDE.local.md를 만들면 오히려 팀 지침이 로드되지 않습니다. 이 경우 지침 파일을 만들지 않습니다.
+hook은 처음부터 막지 않습니다. 기본은 관찰 모드라서 테스트가 깨져도 경고만 띄우고 로그를 남깁니다. 리팩터링 도중처럼 일부러 깨진 상태로 멈추고 싶을 때도 있기 때문입니다. 1주쯤 로그를 보고 쓸데없이 막는 일이 없겠다 싶으면 그때 강제 모드로 바꿉니다. 강제 모드에서도 같은 실패가 세 번 이어지면 더 붙잡지 않고 사람에게 넘깁니다. 테스트가 1분 넘게 걸리면 hook에는 빠른 검사만 걸고, 전체 테스트는 verify 절차로 돌립니다.
 
-**확인하지 않은 것은 만들어 넣지 않는다.**
-단일 테스트 명령은 실제로 실행해 본 것만, 앱 실행 방법은 README에 적혀 있으면 "문서에 적힌 방법(실행 확인 안 함)"으로, 불변식은 저장소 지침에서 확인된 것만 넣습니다. 비밀 파일은 존재 여부만 보고 내용은 읽지 않습니다.
+팀 저장소에서는 흔적을 남기지 않는 쪽을 기본으로 했습니다. 작성자가 여러 명이면 로컬 설치를 추천하고, 모든 파일을 `.claude/` 아래에 두고 `.git/info/exclude`로 git에서 뺍니다. 이 PC에만 있는 경로(PATH에 없는 Maven의 절대 경로 같은 것)도 저장소에 올라가는 파일이 아니라 로컬 설정 파일에만 씁니다.
 
-## 검증 과정
+AGENTS.md만 있는 저장소는 건드리지 않습니다. Claude Code는 CLAUDE.md나 CLAUDE.local.md가 하나라도 있으면 AGENTS.md를 읽지 않습니다. 개인 설정 파일을 하나 만들었다가 팀 지침이 통째로 안 읽히는 일이 생길 수 있어서, 이 경우엔 지침 파일을 만들지 않습니다.
 
-### 1. hook 스크립트 단위 시험
-임시 git 저장소에서 다음 경우를 모두 시험했습니다.
+## 시험하면서 알게 된 것
 
-- 변경 없음, 통과, 같은 상태 재실행(캐시)
-- observe 실패(경고만, 로그 기록), 같은 실패 상태 재실행
-- enforce 연속 실패 1/3 → 2/3 → 3/3 → 4번째에 더 막지 않음
-- `CLAUDE_VERIFY_MODE=off`, 설정 파일 없음, 깨진 local 설정 파일
-- 커밋 0개 저장소, git이 아닌 폴더, 존재하지 않는 명령
-- Maven(`[ERROR]`)·node test(`✖`) 출력에서 첫 오류 줄 고르기
+npm(혼자 쓰는 저장소), Maven(작성자 2명에 AGENTS.md가 있는 저장소), 커밋이 하나도 없는 빈 저장소, 이렇게 세 샘플에 `claude -p`로 실제 skill을 돌렸습니다. 설치된 npm 샘플에서는 세션에 일부러 테스트를 깨뜨리게 해서 hook이 실제로 돌아 로그를 남기는 것까지 봤습니다. 빈 저장소에서는 검증할 테스트가 없으니 지침과 권한만 깔고 "테스트를 만들면 다시 실행하라"고 안내합니다.
 
-### 2. 실제 Claude Code CLI로 skill 실행
-`claude -p "/new-project-setup <인자>"`로 새 세션을 띄워 세 샘플 저장소에서 실행했습니다.
+처음 돌렸을 때 나온 문제들입니다.
 
-| 샘플 | 조건 | 결과 |
-|---|---|---|
-| npm-solo | 작성자 1명, commit 모드, gitignore된 로컬 설정 파일 | CLAUDE.md, settings.json, hook(observe), verify, reviewer, `.worktreeinclude` 생성. 7단계 hook 시험 3종 통과 |
-| maven-team | 작성자 2명, AGENTS.md 있음, local 모드, `mvn`이 PATH에 없음 | 지침 파일을 만들지 않음. `mvn test`는 저장소 설정에, 절대 경로는 local 파일에만. `git status` 깨끗 |
-| new-empty | 커밋 0개, 테스트 없음 | 지침·권한·`.gitignore`만 설치하고 hook과 verify는 나중에 다시 실행하라고 안내 |
-
-### 3. 실제 세션에서 hook 실행 확인
-설치된 npm-solo에서 CLI 세션에 테스트가 깨지는 수정을 시켰습니다. 세션이 턴을 끝내자 Stop hook이 `npm test`를 실행해 실패를 감지했고, observe 모드대로 막지 않고 로그를 남겼습니다.
-
-### 시험으로 찾아서 고친 문제
-- **커밋 0개 저장소에서 hook이 예외로 종료** — `git diff HEAD`가 실패했습니다. HEAD가 없으면 index 기준으로 비교하고, 어떤 오류도 턴을 막지 않게 바꿨습니다.
-- **SKILL.md 본문의 변수가 실제 경로로 치환됨** — Claude Code는 skill을 불러올 때 본문의 `${...}` 변수를 바꿔 넣습니다. 커밋용 hook 설정 예시가 이 PC의 임시 경로로 바뀌어 전달됐습니다. 예시를 치환되지 않는 템플릿 파일로 옮겼습니다.
-- **Maven 탐색 경로가 실제 구조와 다름** — wrapper 배포본은 한 단계 더 깊은 곳에 있었습니다. 재귀로 찾고 가장 높은 버전을 고르게 했습니다.
-- **observe 로그가 gitignore 목록에 없음** — 커밋에 섞일 수 있었습니다.
-- **force push 차단 구멍** — `git push origin main --force`처럼 옵션이 뒤에 오면 deny에 걸리지 않았습니다. 패턴을 추가했습니다.
-- **Git Bash 형식 경로(`/c/...`)를 받지 못함**, **npm의 `> 명령` 줄을 오류로 고름** 등.
-
-## 요구 사항
-- Claude Code (2.1.330에서 시험)
-- git, Node.js (hook 스크립트가 Node로 동작)
+- 정작 대상인 커밋 0개 저장소에서 hook이 죽었습니다. `git diff HEAD`를 할 HEAD가 없었기 때문입니다.
+- skill 본문에 적은 `${CLAUDE_PROJECT_DIR}`가 skill을 불러오는 순간 실제 경로로 바뀌었습니다. 그래서 팀과 공유할 설정에 이 PC의 임시 폴더 경로가 박힐 뻔했습니다. 그 예시는 치환되지 않는 템플릿 파일로 옮겼습니다.
+- Maven wrapper를 찾는 경로가 실제보다 한 단계 얕았습니다.
+- 관찰 모드 로그 파일이 `.gitignore` 목록에 빠져 있었습니다.
+- `git push --force`는 막는데 `git push origin main --force`는 못 막고 있었습니다.
 
 ## 한계
-- **Windows에서만 시험했습니다.** macOS·Linux에서는 돌려보지 않았습니다.
-- 권한 규칙은 명령의 앞부분 일치로 동작합니다. `git -C . reset --hard`처럼 앞에 옵션을 붙인 형태는 막지 못합니다.
-- 대화형 세션 화면에서 observe 경고가 어떻게 보이는지, enforce 모드가 실제 세션에서 Claude를 되돌려 보내는지는 스크립트 출력으로만 확인했습니다.
-- 모노레포처럼 하위 프로젝트별로 다른 검사가 필요한 구조는 지원하지 않습니다.
 
-## 참고 문서
-- [Best practices for Claude Code](https://code.claude.com/docs/en/best-practices)
-- [Hooks reference](https://code.claude.com/docs/en/hooks)
-- [Memory (CLAUDE.md, AGENTS.md)](https://code.claude.com/docs/en/memory)
-- [/goal](https://code.claude.com/docs/en/goal)
+- Windows에서만 시험했습니다.
+- hook은 Node.js로 돌기 때문에 Node가 없는 환경에서는 동작하지 않습니다.
+- 모노레포처럼 하위 프로젝트마다 다른 검사가 필요한 구조는 지원하지 않습니다.
+- 대화형 세션에서 경고가 화면에 어떻게 보이는지는 직접 보지 못했습니다. `-p` 모드에서 로그로만 확인했습니다.

@@ -1,26 +1,15 @@
 # claude-skills
 
-실무에서 직접 만들어 쓰는 [Claude Code](https://code.claude.com) skill 모음입니다.
-skill마다 폴더가 하나씩 있고, 각 폴더의 `README.md`에 만든 이유, 설계 판단, 검증 과정, 알려진 한계를 정리합니다.
+제가 실제 작업에서 만들어 쓰는 [Claude Code](https://code.claude.com) skill들입니다. 폴더마다 README에 왜 만들었는지, 어떻게 시험했는지, 아직 못 한 게 뭔지 적어 두었습니다.
 
-## Skills
+- [new-project-setup](new-project-setup/): 새 저장소에 CLAUDE.md, 권한 규칙, 작업이 끝날 때 테스트를 돌리는 hook을 깔아 줍니다.
+- [infra-change-guard](infra-change-guard/): 인프라를 바꾸기 전에 대상 환경과 Terraform plan을 확인하고, 사람이 승인한 plan만 적용하게 합니다.
 
-| Skill | 하는 일 |
-|---|---|
-| [new-project-setup](new-project-setup/) | 저장소에 검증 명령, 최소 지침 파일, 권한 규칙, Stop hook, verify skill, 읽기 전용 리뷰어를 설치한다 |
-| [infra-change-guard](infra-change-guard/) | 인프라를 바꾸기 전에 대상 환경을 확인하고 Terraform plan을 데이터 손실 관점에서 검토해, 사람이 승인한 plan만 적용하게 한다 |
+쓰고 싶은 폴더를 `~/.claude/skills/` 아래에 복사하면 됩니다.
 
-## 설치
-
-쓰고 싶은 skill 폴더를 `~/.claude/skills/` 아래에 복사하면 됩니다.
-
-```bash
+```
 git clone https://github.com/gumwoo/claude-skills.git
-cp -r claude-skills/new-project-setup ~/.claude/skills/
+cp -r claude-skills/infra-change-guard ~/.claude/skills/
 ```
 
-새 Claude Code 세션에서 `/skill 이름`으로 실행합니다. 각 skill의 요구 사항과 사용법은 해당 폴더의 README를 보세요.
-
-## License
-
-[MIT](LICENSE)
+[MIT License](LICENSE)
