@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>자리 — 예약 확인</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .section h2 { font-size: var(--fs-heading); font-weight: 700; margin-bottom: var(--sp-3); }
+  .booking { display: flex; gap: var(--sp-4); align-items: center; }
+  .booking img { width: 64px; height: 64px; border-radius: var(--r-md); object-fit: cover; flex: none; }
+  .booking .body { flex: 1; min-width: 0; }
+  .booking .name { font-weight: 600; }
+  .booking .meta { font-size: var(--fs-sub); color: var(--text-2); }
+  .nw { white-space: nowrap; } /* 날짜와 시간이 각각 한 덩어리로 줄바꿈되게 */
+  .pay { display: flex; flex-direction: column; }
+  .pay .check { padding: var(--sp-1) 0; }
+  .pay .sub { display: block; font-size: 13px; color: var(--text-3); }
+  .coupon { display: flex; align-items: center; justify-content: space-between; min-height: 52px; color: inherit; text-decoration: none; font-size: 15px; }
+  .coupon .val { display: inline-flex; align-items: center; gap: 2px; color: var(--accent-strong); font-weight: 600; }
+  .coupon svg { width: 18px; height: 18px; color: var(--text-3); }
+  .kv dd.minus { color: var(--accent-strong); }
+  .total { display: flex; justify-content: space-between; align-items: baseline; margin-top: var(--sp-3); padding-top: var(--sp-4); border-top: 1px solid var(--line); }
+  .total span { font-weight: 600; }
+  .total b { font-size: 22px; letter-spacing: -0.02em; }
+  .all { font-weight: 700; font-size: var(--fs-body); }
+  .terms { margin-top: var(--sp-1); padding-left: 34px; }
+  .terms .check { font-size: var(--fs-sub); color: var(--text-2); }
+  .terms .check input { width: 18px; height: 18px; }
+  .fine { margin-top: var(--sp-3); font-size: 13px; color: var(--text-3); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <a class="icon-btn" href="app-detail.html" aria-label="뒤로 가기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></a>
+    <span class="title">예약 확인</span>
+    <span style="width: 44px"></span>
+  </header>
+
+  <section class="section">
+    <div class="booking">
+      <img src="assets/room-study.jpg" alt="">
+      <div class="body">
+        <div class="name">성수 오크 스터디룸 B</div>
+        <div class="meta"><span class="nw">11월 23일 (월)</span> <span class="nw">19:00–21:00 · 4명</span></div>
+      </div>
+      <a class="btn btn-secondary btn-sm" href="app-detail.html" style="min-height: 44px">바꾸기</a>
+    </div>
+  </section>
+
+  <div class="band"></div>
+
+  <section class="section">
+    <h2>결제 수단</h2>
+    <div class="pay">
+      <label class="check"><input type="radio" name="pay" checked><span class="grow">간편결제<span class="sub">등록한 카드 ••••4821</span></span></label>
+      <label class="check"><input type="radio" name="pay"><span class="grow">신용·체크카드</span></label>
+      <label class="check"><input type="radio" name="pay"><span class="grow">계좌이체</span></label>
+      <label class="check"><input type="radio" name="pay"><span class="grow">휴대폰 결제</span></label>
+    </div>
+    <a class="coupon" href="#">쿠폰
+      <span class="val">3,000원 할인 적용<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></span>
+    </a>
+  </section>
+
+  <div class="band"></div>
+
+  <section class="section">
+    <h2>결제 금액</h2>
+    <dl>
+      <div class="kv"><dt>이용 금액 (2시간)</dt><dd class="num">24,000원</dd></div>
+      <div class="kv"><dt>쿠폰 할인</dt><dd class="num minus">-3,000원</dd></div>
+    </dl>
+    <div class="total"><span>최종 결제 금액</span><b class="num">21,000원</b></div>
+  </section>
+
+  <div class="band"></div>
+
+  <section class="section">
+    <label class="check all"><input type="checkbox"><span class="grow">아래 내용에 모두 동의해요</span></label>
+    <div class="terms">
+      <label class="check"><input type="checkbox"><span class="grow"><span class="req">필수</span>이용 규칙과 취소·환불 정책</span><a class="link-sm" href="#">보기</a></label>
+      <label class="check"><input type="checkbox"><span class="grow"><span class="req">필수</span>예약 정보를 공간 운영자에게 제공</span><a class="link-sm" href="#">보기</a></label>
+      <label class="check"><input type="checkbox"><span class="grow"><span class="opt">선택</span>할인·이벤트 소식 받기</span></label>
+    </div>
+    <p class="fine">이용 2일 전까지 취소하면 전액 돌려드려요.</p>
+  </section>
+
+  <div class="cta-bar">
+    <button class="btn btn-primary" type="button">21,000원 결제하기</button>
+  </div>
+</div>
+</body>
+</html>

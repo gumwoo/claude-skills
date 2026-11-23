@@ -1,0 +1,64 @@
+/* 예시 앱 화면 공통. 토큰은 templates/tokens.css에서 가져온다. */
+@import url("../templates/tokens.css");
+
+body { background: var(--bg-2); }
+.app { max-width: 480px; min-height: 100vh; margin: 0 auto; background: var(--bg); position: relative; padding-bottom: 96px; }
+
+/* 상단 바 */
+.topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: var(--sp-1); height: 56px; padding: 0 var(--sp-2) 0 var(--sp-3); background: var(--bg); }
+.topbar .title { flex: 1; font-size: 17px; font-weight: 600; text-align: center; }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: var(--tap); height: var(--tap); border: 0; background: none; border-radius: var(--r-full); color: var(--text-1); cursor: pointer; }
+.icon-btn svg, .ic { width: 24px; height: 24px; flex: none; }
+.ic-sm { width: 16px; height: 16px; flex: none; }
+
+.section { padding: var(--sp-6) var(--gutter); }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: var(--sp-3); }
+.section-head h2 { font-size: var(--fs-heading); font-weight: 700; }
+.more { display: inline-flex; align-items: center; min-height: var(--tap); font-size: var(--fs-sub); color: var(--text-3); text-decoration: none; }
+
+/* 목록 한 줄 */
+.row { display: flex; gap: var(--sp-4); padding: var(--sp-4) 0; color: inherit; text-decoration: none; }
+.row .thumb { width: 88px; height: 88px; border-radius: var(--r-md); object-fit: cover; flex: none; background: var(--fill); }
+.row .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.row .name { font-size: var(--fs-body); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .meta { font-size: 13px; color: var(--text-3); }
+.row .price-line { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.row .price { font-size: var(--fs-body); font-weight: 700; }
+.row .price small { font-size: 13px; font-weight: 500; color: var(--text-2); margin-right: 2px; }
+
+.rating { display: inline-flex; align-items: center; gap: 2px; color: var(--text-1); font-weight: 600; }
+.rating svg { width: 13px; height: 13px; color: #ffb400; }
+
+.tag { display: inline-flex; align-items: center; height: 22px; padding: 0 6px; border-radius: 6px; font-size: 12px; font-weight: 600; background: var(--fill); color: var(--text-2); }
+.tag-accent { background: var(--accent-weak); color: var(--accent-strong); }
+.tag-warn { background: #fff4e5; color: #b45309; }
+
+/* 칩 */
+.chips { display: flex; gap: var(--sp-2); overflow-x: auto; padding: 0 var(--gutter); scrollbar-width: none; }
+/* 보이는 칩은 36px, 터치 영역은 위아래 투명 테두리로 44px */
+.chip { display: inline-flex; align-items: center; gap: 4px; height: var(--tap); padding: 0 14px; border: 4px solid transparent; border-left: 0; border-right: 0; background: var(--bg) padding-box; box-shadow: inset 0 0 0 1px var(--line); border-radius: var(--r-full); font-size: var(--fs-sub); font-weight: 500; white-space: nowrap; color: var(--text-1); cursor: pointer; }
+.chip.on { background-color: var(--text-1); box-shadow: none; color: #fff; }
+
+/* 하단 고정 CTA */
+.cta-bar { position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); width: 100%; max-width: 480px; padding: var(--sp-3) var(--gutter) calc(var(--sp-3) + env(safe-area-inset-bottom)); background: linear-gradient(to bottom, rgb(255 255 255 / 0), #fff 24%); z-index: 20; }
+.cta-bar .btn { width: 100%; }
+
+/* 하단 탭 */
+.tabbar { position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); width: 100%; max-width: 480px; display: grid; grid-template-columns: repeat(4, 1fr); height: 64px; border-top: 1px solid var(--line); background: var(--bg); z-index: 20; }
+.tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 12px; font-weight: 500; color: var(--text-3); text-decoration: none; }
+.tab.on { color: var(--text-1); }
+.tab svg { width: 24px; height: 24px; }
+
+/* 키-값 줄 */
+.kv { display: flex; justify-content: space-between; gap: var(--sp-4); padding: 6px 0; font-size: 15px; }
+.kv dt { color: var(--text-2); }
+.kv dd { margin: 0; font-weight: 500; text-align: right; }
+.row .body > .price { margin-top: auto; }
+
+/* 체크박스·라디오 줄: 줄 전체가 터치 영역 */
+.check { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--tap); font-size: 15px; cursor: pointer; }
+.check input { width: 22px; height: 22px; margin: 0; accent-color: var(--accent); flex: none; }
+.check .grow { flex: 1; }
+.check .req { color: var(--accent-strong); font-weight: 600; margin-right: 6px; }
+.check .opt { color: var(--text-3); font-weight: 600; margin-right: 6px; }
+.link-sm { display: inline-flex; align-items: center; justify-content: center; min-width: var(--tap); min-height: var(--tap); padding: 0 var(--sp-1); font-size: 13px; color: var(--text-3); text-decoration: underline; text-underline-offset: 2px; }

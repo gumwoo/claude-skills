@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>자리 — 홈</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .loc { display: inline-flex; align-items: center; gap: 2px; height: var(--tap); padding: 0 var(--sp-2); border: 0; background: none; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; cursor: pointer; }
+  .loc svg { width: 20px; height: 20px; }
+  .spacer { flex: 1; }
+  .search { display: flex; align-items: center; gap: var(--sp-2); width: calc(100% - 2 * var(--gutter)); height: 48px; margin: var(--sp-1) var(--gutter) 0; padding: 0 var(--sp-4); border: 0; border-radius: var(--r-md); background: var(--fill); color: var(--text-3); font-size: 15px; text-align: left; cursor: pointer; }
+  .when { display: flex; align-items: center; justify-content: space-between; margin: var(--sp-3) var(--gutter) var(--sp-4); min-height: var(--tap); padding: 0 var(--sp-1); color: var(--text-1); font-size: 15px; font-weight: 600; text-decoration: none; }
+  .when span { display: inline-flex; align-items: center; gap: var(--sp-2); }
+  .when .sep { width: 1px; height: 12px; background: var(--line); }
+  .when svg { width: 18px; height: 18px; color: var(--text-3); }
+  .first.section { padding-top: var(--sp-5); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <button class="loc" type="button">성수동
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <span class="spacer"></span>
+    <button class="icon-btn" type="button" aria-label="알림">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+    </button>
+  </header>
+
+  <button class="search" type="button">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    공간 이름이나 동네로 찾기
+  </button>
+
+  <a class="when" href="#">
+    <span>11월 23일 (월) <i class="sep"></i> 19:00–21:00 <i class="sep"></i> 4명</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>
+  </a>
+
+  <div class="chips" role="tablist">
+    <button class="chip on" type="button">전체</button>
+    <button class="chip" type="button">스터디룸</button>
+    <button class="chip" type="button">연습실</button>
+    <button class="chip" type="button">합주실</button>
+    <button class="chip" type="button">댄스</button>
+    <button class="chip" type="button">회의실</button>
+  </div>
+
+  <section class="section first">
+    <div class="section-head">
+      <h2>19시에 비어 있는 곳</h2>
+      <a class="more" href="#">지도로 보기</a>
+    </div>
+    <div class="list">
+      <a class="row" href="app-detail.html">
+        <img class="thumb" src="assets/room-study.jpg" alt="">
+        <div class="body">
+          <span class="name">성수 오크 스터디룸 B</span>
+          <span class="meta"><span class="rating"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>4.9</span> (412) · 성수동 · 320m</span>
+          <span class="price-line"><span class="price"><small>1시간</small>12,000원</span><span class="tag tag-warn">2자리 남음</span></span>
+        </div>
+      </a>
+      <a class="row" href="#">
+        <img class="thumb" src="assets/room-piano.jpg" alt="">
+        <div class="body">
+          <span class="name">뚝섬 피아노 연습실 3호</span>
+          <span class="meta"><span class="rating"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>4.7</span> (188) · 성수동2가 · 650m</span>
+          <span class="price"><small>1시간</small>6,500원</span>
+        </div>
+      </a>
+      <a class="row" href="#">
+        <img class="thumb" src="assets/room-band.jpg" alt="">
+        <div class="body">
+          <span class="name">서울숲 합주실 A룸</span>
+          <span class="meta"><span class="rating"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>4.8</span> (1,024) · 성수동1가 · 1.1km</span>
+          <span class="price-line"><span class="price"><small>1시간</small>18,000원</span><span class="tag">드럼 포함</span></span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <div class="band"></div>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>이번 주 많이 찾은 곳</h2>
+      <a class="more" href="#">전체보기</a>
+    </div>
+    <div class="list">
+      <a class="row" href="#">
+        <img class="thumb" src="assets/room-meeting.jpg" alt="">
+        <div class="body">
+          <span class="name">연무장길 회의실 6인</span>
+          <span class="meta"><span class="rating"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>4.8</span> (263) · 성수동2가 · 800m</span>
+          <span class="price-line"><span class="price"><small>1시간</small>22,000원</span><span class="tag tag-accent">모니터</span></span>
+        </div>
+      </a>
+      <a class="row" href="#">
+        <img class="thumb" src="assets/room-dance.jpg" alt="">
+        <div class="body">
+          <span class="name">성수 무브 댄스스튜디오</span>
+          <span class="meta"><span class="rating"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>4.6</span> (97) · 성수동2가 · 1.4km</span>
+          <span class="price"><small>1시간</small>15,000원</span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <nav class="tabbar">
+    <a class="tab on" href="#"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>홈</a>
+    <a class="tab" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>지도</a>
+    <a class="tab" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>예약 내역</a>
+    <a class="tab" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>내 정보</a>
+  </nav>
+</div>
+</body>
+</html>

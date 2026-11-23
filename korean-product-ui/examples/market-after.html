@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>중고거래 상세 — 스킬을 적용한 화면</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .hero { position: relative; aspect-ratio: 1 / 1; background: var(--fill); }
+  .hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .hero .bar { position: absolute; inset: 0 0 auto; display: flex; padding: var(--sp-1) var(--sp-2); }
+  .hero .bar .icon-btn { color: #fff; filter: drop-shadow(0 1px 2px rgb(0 0 0 / .35)); }
+  .dots { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 6px; }
+  .dots i { width: 6px; height: 6px; border-radius: 50%; background: rgb(255 255 255 / .55); }
+  .dots i:first-child { background: #fff; }
+  .spacer { flex: 1; }
+  .seller { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-4) var(--gutter); border-bottom: 1px solid var(--line); }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; background: #e8efe9; color: var(--accent-strong); display: flex; align-items: center; justify-content: center; font-weight: 700; flex: none; }
+  .seller .who { flex: 1; line-height: 1.35; }
+  .seller .who b { display: block; font-size: 15px; font-weight: 600; }
+  .seller .who span { font-size: 13px; color: var(--text-3); }
+  .seller .rev { text-decoration: none; display: inline-flex; align-items: center; min-height: var(--tap); font-size: 13px; color: var(--text-2); }
+  .post { padding: var(--sp-5) var(--gutter) var(--sp-8); }
+  .post h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+  .post .meta { margin-top: var(--sp-1); font-size: 13px; color: var(--text-3); }
+  .post .body { margin-top: var(--sp-4); font-size: var(--fs-body); line-height: 1.65; }
+  .post .body p + p { margin-top: var(--sp-3); }
+  .post .stats { margin-top: var(--sp-5); font-size: 13px; color: var(--text-3); }
+  .buy { position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); width: 100%; max-width: 480px; display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--gutter) calc(var(--sp-2) + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--bg); }
+  .buy .like { margin-left: -10px; color: var(--text-2); }
+  .buy .div { width: 1px; height: 32px; background: var(--line); }
+  .buy .pr { flex: 1; line-height: 1.3; }
+  .buy .pr b { display: block; font-size: 18px; }
+  .buy .pr a { font-size: 13px; color: var(--accent-strong); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; display: inline-flex; align-items: center; min-height: var(--tap); margin: -12px 0; }
+  .buy .btn { padding: 0 var(--sp-6); height: 48px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hero">
+    <img src="assets/camera.jpg" alt="35mm 레인지파인더 필름카메라">
+    <div class="bar">
+      <a class="icon-btn" href="#" aria-label="뒤로 가기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></a>
+      <span class="spacer"></span>
+      <button class="icon-btn" type="button" aria-label="공유"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
+      <button class="icon-btn" type="button" aria-label="더 보기"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button>
+    </div>
+    <div class="dots"><i></i><i></i><i></i><i></i></div>
+  </div>
+
+  <div class="seller">
+    <span class="avatar">필</span>
+    <div class="who"><b>필름사진관</b><span>망원동</span></div>
+    <a class="rev" href="#">거래 후기 23</a>
+  </div>
+
+  <article class="post">
+    <h1>35mm 레인지파인더 필름카메라 (50mm 렌즈 포함)</h1>
+    <p class="meta">디지털·카메라 · 2시간 전</p>
+    <div class="body">
+      <p>작년에 중고로 사서 필름 10롤 정도 찍었어요. 셔터 속도는 전 구간 잘 맞고 노출계도 작동해요.</p>
+      <p>렌즈에 아주 옅은 헤어라인 스크래치가 있는데 사진에는 나오지 않아요. 작례 3장 같이 올려 뒀어요.</p>
+      <p>스트랩이랑 필름 1롤 같이 드려요. 망원역 근처에서 직거래하고 싶어요.</p>
+    </div>
+    <p class="stats">관심 18 · 채팅 4 · 조회 312</p>
+  </article>
+
+  <div class="buy">
+    <button class="icon-btn like" type="button" aria-label="관심 목록에 추가"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 7.5 3c0 5.4-7.5 10-7.5 10z"/></svg></button>
+    <span class="div"></span>
+    <div class="pr"><b class="num">145,000원</b><a href="#">가격 제안하기</a></div>
+    <a class="btn btn-primary" href="#">채팅하기</a>
+  </div>
+</div>
+</body>
+</html>

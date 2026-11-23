@@ -1,0 +1,92 @@
+/*
+  한국어 소비자 서비스 화면의 기본값.
+  --accent 한 줄만 프로젝트 색으로 바꾸면 된다. 강조색은 하나만 쓴다.
+  프로젝트에 디자인 시스템(SEED, TDS, Montage 등)이 있으면 이 파일 대신 그쪽 토큰을 쓴다.
+*/
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+:root {
+  /* 강조색: 프로젝트마다 바꾼다. 아래는 예시 */
+  --accent: #0b7d56;   /* 흰 글자와 5.1:1 */
+  --accent-strong: color-mix(in srgb, var(--accent) 85%, #000);
+  --accent-weak: color-mix(in srgb, var(--accent) 10%, #fff);
+  --on-accent: #fff;
+
+  /* 회색: 글자 4단계, 면 3단계 */
+  --text-1: #191f28;   /* 제목·본문 */
+  --text-2: #4e5968;   /* 보조 설명 */
+  --text-3: #5f6b7a;   /* 캡션·비활성 라벨 (흰 바탕·--fill 위 모두 4.5:1 이상) */
+  --text-4: #b0b8c1;   /* 자리표시·비활성 — 글자 정보에는 쓰지 않는다 */
+  --bg: #fff;
+  --bg-2: #f9fafb;     /* 페이지 바탕(웹) */
+  --fill: #f2f4f6;     /* 보조 버튼, 섹션 띠, 입력창 */
+  --line: #e5e8eb;     /* 1px 구분선 */
+
+  /* 상태색 */
+  --danger: #e42939;
+  --warning: #f59f00;
+  --success: #0b7d56;
+
+  /* 글꼴 */
+  --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
+    "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+
+  /* 크기: 이름은 쓰임, 값은 px */
+  --fs-display: 32px;  /* 웹 첫 화면 제목 */
+  --fs-title: 24px;    /* 앱 화면 큰 제목 */
+  --fs-heading: 19px;  /* 섹션 제목 */
+  --fs-body: 16px;
+  --fs-sub: 14px;
+  --fs-caption: 12px;
+
+  /* 간격: 4의 배수만 */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px;
+  --gutter: 20px;      /* 모바일 좌우 여백 */
+
+  /* 모서리 */
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-full: 999px;
+
+  /* 그림자는 떠 있는 것(바텀시트, 드롭다운, 하단 CTA 영역)에만 */
+  --shadow-float: 0 4px 16px rgb(0 0 0 / 0.08);
+
+  --tap: 44px;         /* 최소 터치 영역 */
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: 1.55;
+  color: var(--text-1);
+  background: var(--bg);
+  word-break: keep-all;        /* 어절 단위 줄바꿈 */
+  overflow-wrap: break-word;   /* 긴 URL·영문만 예외로 자름 */
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { margin: 0; line-height: 1.35; letter-spacing: -0.02em; text-wrap: balance; }
+p { margin: 0; }
+button { font: inherit; color: inherit; }
+
+.num { font-variant-numeric: tabular-nums; }
+
+/* 버튼 기본형 */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
+  height: 52px; padding: 0 var(--sp-5);
+  border: 0; border-radius: var(--r-md); text-decoration: none;
+  font-size: var(--fs-body); font-weight: 600; white-space: nowrap; cursor: pointer;
+}
+.btn-primary { background: var(--accent); color: var(--on-accent); }
+.btn-secondary { background: var(--fill); color: var(--text-1); }
+.btn-sm { height: 36px; padding: 0 var(--sp-3); font-size: var(--fs-sub); border-radius: var(--r-sm); }
+
+/* 1px 구분선 목록 */
+.list > * + * { border-top: 1px solid var(--line); }
+
+/* 섹션 사이 회색 띠(앱) */
+.band { height: 8px; background: var(--fill); }

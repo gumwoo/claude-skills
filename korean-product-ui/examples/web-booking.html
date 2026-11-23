@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>자리 — 성수동 공간 찾기</title>
+<link rel="stylesheet" href="../templates/tokens.css">
+<style>
+  body { background: var(--bg); }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
+  a { color: inherit; text-decoration: none; }
+  svg { flex: none; }
+
+  /* 헤더 */
+  .gnb { position: sticky; top: 0; z-index: 10; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .gnb .wrap { display: flex; align-items: center; gap: 40px; height: 64px; }
+  .logo { display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); font-size: 22px; font-weight: 800; letter-spacing: -0.04em; }
+  .logo i { width: 10px; height: 10px; border-radius: 3px; background: var(--accent); }
+  .nav { display: flex; gap: 28px; font-size: 15px; font-weight: 600; color: var(--text-2); }
+  .nav a { display: inline-flex; align-items: center; min-height: var(--tap); }
+  .nav a.on { color: var(--text-1); box-shadow: inset 0 -2px 0 var(--text-1); }
+  .gnb .right { margin-left: auto; display: flex; align-items: center; gap: var(--sp-2); }
+  .gnb .host { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 var(--sp-3); font-size: var(--fs-sub); font-weight: 600; color: var(--text-2); }
+  .menu-btn { display: none; }
+
+  /* 검색 */
+  .finder { padding: 32px 0 8px; }
+  .finder h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; }
+  .finder h1 em { font-style: normal; color: var(--accent); }
+  .bar { display: grid; grid-template-columns: 1.2fr 1fr 1fr 0.8fr auto; margin-top: var(--sp-5); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+  .field { display: flex; flex-direction: column; justify-content: center; gap: 2px; min-height: 64px; padding: 0 var(--sp-5); border: 0; background: var(--bg); text-align: left; cursor: pointer; }
+  .field + .field { border-left: 1px solid var(--line); }
+  .field small { font-size: 12px; font-weight: 600; color: var(--text-3); }
+  .field b { font-size: var(--fs-body); font-weight: 600; }
+  .bar .btn { height: auto; border-radius: 0; padding: 0 32px; }
+
+  /* 결과 */
+  .result-head { display: flex; align-items: center; justify-content: space-between; margin-top: 40px; }
+  .result-head h2 { font-size: var(--fs-heading); font-weight: 700; }
+  .result-head h2 span { color: var(--text-3); font-weight: 500; margin-left: 4px; }
+  .sort { display: inline-flex; align-items: center; gap: 4px; min-height: var(--tap); padding: 0 var(--sp-2); border: 0; background: none; font-size: var(--fs-sub); font-weight: 600; color: var(--text-2); cursor: pointer; }
+  .chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
+  .chip { display: inline-flex; align-items: center; gap: 4px; height: var(--tap); padding: 0 14px; border: 4px solid transparent; border-left: 0; border-right: 0; background: var(--bg) padding-box; box-shadow: inset 0 0 0 1px var(--line); border-radius: var(--r-full); font-size: var(--fs-sub); font-weight: 500; white-space: nowrap; cursor: pointer; }
+  .chip.on { background-color: var(--text-1); box-shadow: none; color: #fff; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px 24px; margin-top: var(--sp-6); }
+  .card { display: flex; flex-direction: column; gap: 4px; }
+  .card .ph { position: relative; aspect-ratio: 4 / 3; border-radius: var(--r-md); overflow: hidden; background: var(--fill); margin-bottom: var(--sp-2); }
+  .card .ph img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s; }
+  .card:hover .ph img { transform: scale(1.03); }
+  .card .like { position: absolute; top: 4px; right: 4px; width: var(--tap); height: var(--tap); display: flex; align-items: center; justify-content: center; border: 0; background: none; color: #fff; filter: drop-shadow(0 1px 2px rgb(0 0 0 / .4)); cursor: pointer; }
+  .card .badge { position: absolute; left: 12px; top: 12px; padding: 3px 8px; border-radius: 6px; background: #fff; font-size: 12px; font-weight: 700; color: #b45309; }
+  .card .name { font-size: 17px; font-weight: 600; }
+  .card .meta { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sub); color: var(--text-2); }
+  .card .meta .rating { display: inline-flex; align-items: center; gap: 2px; color: var(--text-1); font-weight: 600; }
+  .card .meta .rating svg { width: 14px; height: 14px; color: #ffb400; }
+  .card .price { margin-top: 2px; font-size: 17px; font-weight: 700; }
+  .card .price small { font-size: var(--fs-sub); font-weight: 500; color: var(--text-2); margin-right: 4px; }
+  .more-wrap { display: flex; justify-content: center; margin: 48px 0 80px; }
+  .more-wrap .btn { min-width: 240px; }
+
+  /* 푸터 */
+  footer { background: var(--bg-2); border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 13px; color: var(--text-3); }
+  footer .links { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-bottom: var(--sp-4); color: var(--text-2); font-weight: 500; }
+  footer .links a { display: inline-flex; align-items: center; min-height: var(--tap); }
+  footer .links b { font-weight: 700; color: var(--text-1); }
+  footer p + p { margin-top: 4px; }
+
+  /* 태블릿 */
+  @media (max-width: 1023px) {
+    .wrap { padding: 0 32px; }
+    .grid { grid-template-columns: repeat(2, 1fr); }
+    .bar { grid-template-columns: 1fr 1fr; }
+    .bar .field:nth-child(3) { border-left: 0; }
+    .bar .field:nth-child(n+3) { border-top: 1px solid var(--line); }
+    .bar .btn { grid-column: 1 / -1; height: 52px; }
+  }
+  /* 모바일 */
+  @media (max-width: 767px) {
+    .wrap { padding: 0 20px; }
+    .gnb .wrap { gap: var(--sp-3); height: 56px; }
+    .nav, .gnb .host { display: none; }
+    .menu-btn { display: inline-flex; align-items: center; justify-content: center; width: var(--tap); height: var(--tap); border: 0; background: none; cursor: pointer; }
+    .finder { padding-top: 20px; }
+    .finder h1 { font-size: 22px; }
+    .bar { margin-top: var(--sp-4); }
+    .field { min-height: 56px; padding: 0 var(--sp-4); }
+    .result-head { margin-top: 28px; }
+    .chips { flex-wrap: nowrap; overflow-x: auto; margin: var(--sp-3) -20px 0; padding: 0 20px; scrollbar-width: none; }
+    .grid { grid-template-columns: 1fr; gap: 28px; }
+    .more-wrap .btn { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<header class="gnb">
+  <div class="wrap">
+    <a class="logo" href="#"><i></i>자리</a>
+    <nav class="nav">
+      <a class="on" href="#">전체</a><a href="#">스터디룸</a><a href="#">연습실</a><a href="#">합주실</a><a href="#">스튜디오</a>
+    </nav>
+    <div class="right">
+      <a class="host" href="#">공간 등록하기</a>
+      <a class="btn btn-secondary btn-sm" href="#" style="min-height: 44px">로그인</a>
+      <button class="menu-btn" type="button" aria-label="메뉴"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="finder">
+    <h1>성수동에서 <em>오늘 19시</em>에 쓸 공간</h1>
+    <div class="bar">
+      <button class="field" type="button"><small>지역</small><b>성수동 전체</b></button>
+      <button class="field" type="button"><small>날짜</small><b>11월 23일 (월)</b></button>
+      <button class="field" type="button"><small>시간</small><b>19:00–21:00</b></button>
+      <button class="field" type="button"><small>인원</small><b>4명</b></button>
+      <button class="btn btn-primary" type="button">찾기</button>
+    </div>
+  </section>
+
+  <div class="result-head">
+    <h2>예약할 수 있는 곳<span>38</span></h2>
+    <button class="sort" type="button">가까운 순
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+  </div>
+  <div class="chips">
+    <button class="chip on" type="button">전체</button>
+    <button class="chip" type="button">4인 이상</button>
+    <button class="chip" type="button">모니터</button>
+    <button class="chip" type="button">주차 가능</button>
+    <button class="chip" type="button">역에서 5분</button>
+    <button class="chip" type="button">24시간</button>
+  </div>
+
+  <div class="grid">
+    <a class="card" href="app-detail.html">
+      <div class="ph"><img src="assets/room-study.jpg" alt=""><span class="badge">2자리 남음</span>
+        <button class="like" type="button" aria-label="찜하기"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 7.5 3c0 5.4-7.5 10-7.5 10z"/></svg></button></div>
+      <span class="name">성수 오크 스터디룸 B</span>
+      <span class="meta"><span class="rating"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>4.9</span>(412) · 성수역 4분 · 4–6인</span>
+      <span class="price"><small>1시간</small>12,000원</span>
+    </a>
+    <a class="card" href="#">
+      <div class="ph"><img src="assets/room-meeting.jpg" alt="">
+        <button class="like" type="button" aria-label="찜하기"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 7.5 3c0 5.4-7.5 10-7.5 10z"/></svg></button></div>
+      <span class="name">연무장길 회의실 6인</span>
+      <span class="meta"><span class="rating"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>4.8</span>(263) · 성수역 7분 · 최대 6인</span>
+      <span class="price"><small>1시간</small>22,000원</span>
+    </a>
+    <a class="card" href="#">
+      <div class="ph"><img src="assets/room-piano.jpg" alt="">
+        <button class="like" type="button" aria-label="찜하기"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 7.5 3c0 5.4-7.5 10-7.5 10z"/></svg></button></div>
+      <span class="name">뚝섬 피아노 연습실 3호</span>
+      <span class="meta"><span class="rating"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>4.7</span>(188) · 뚝섬역 6분 · 1–2인</span>
+      <span class="price"><small>1시간</small>6,500원</span>
+    </a>
+    <a class="card" href="#">
+      <div class="ph"><img src="assets/room-band.jpg" alt=""><span class="badge">오늘 3타임 남음</span>
+        <button class="like" type="button" aria-label="찜하기"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 7.5 3c0 5.4-7.5 10-7.5 10z"/></svg></button></div>
+      <span class="name">서울숲 합주실 A룸</span>
+      <span class="meta"><span class="rating"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>4.8</span>(1,024) · 서울숲역 9분 · 드럼 포함</span>
+      <span class="price"><small>1시간</small>18,000원</span>
+    </a>
+    <a class="card" href="#">
+      <div class="ph"><img src="assets/room-photo.jpg" alt="">
+        <button class="like" type="button" aria-label="찜하기"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 7.5 3c0 5.4-7.5 10-7.5 10z"/></svg></button></div>
+      <span class="name">성수 화이트 호리존 스튜디오</span>
+      <span class="meta"><span class="rating"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>4.9</span>(76) · 성수역 10분 · 조명 2개</span>
+      <span class="price"><small>1시간</small>35,000원</span>
+    </a>
+    <a class="card" href="#">
+      <div class="ph"><img src="assets/room-dance.jpg" alt="">
+        <button class="like" type="button" aria-label="찜하기"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 7.5 3c0 5.4-7.5 10-7.5 10z"/></svg></button></div>
+      <span class="name">성수 무브 댄스스튜디오</span>
+      <span class="meta"><span class="rating"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>4.6</span>(97) · 성수역 11분 · 거울 6m</span>
+      <span class="price"><small>1시간</small>15,000원</span>
+    </a>
+  </div>
+
+  <div class="more-wrap"><button class="btn btn-secondary" type="button">32곳 더 보기</button></div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a href="#">회사 소개</a><a href="#">이용약관</a><a href="#"><b>개인정보처리방침</b></a><a href="#">공간 운영자 센터</a><a href="#">고객센터</a>
+    </div>
+    <p>(예시) 주식회사 자리 · 대표 김예시 · 사업자등록번호 000-00-00000 · 통신판매업 신고 2026-서울성동-0000</p>
+    <p>서울특별시 성동구 예시로 1 · 고객센터 1500-0000 (평일 10:00–18:00)</p>
+    <p>자리는 통신판매중개자이며, 공간 이용과 관련한 의무와 책임은 각 공간 운영자에게 있습니다.</p>
+  </div>
+</footer>
+</body>
+</html>
