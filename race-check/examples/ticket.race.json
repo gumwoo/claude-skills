@@ -1,0 +1,14 @@
+{
+  "target": "http://localhost:4100/events/1/buy",
+  "method": "POST",
+  "body": { "userId": "user-{{i % 150}}" },
+  "concurrency": 200,
+  "rounds": 10,
+  "reset": { "http": { "method": "POST", "url": "http://localhost:4100/reset", "body": { "stock": 100 } } },
+  "invariants": [
+    { "name": "판매 수량이 재고를 넘지 않음", "http": { "url": "http://localhost:4100/events/1/stats" }, "path": "orders", "expect": "<= 100" },
+    { "name": "남은 수량 + 판매 수량 = 재고", "http": { "url": "http://localhost:4100/events/1/stats" }, "path": "leak", "expect": "== 0" },
+    { "name": "한 사람이 두 번 구매하지 않음", "http": { "url": "http://localhost:4100/events/1/stats" }, "path": "duplicateUsers", "expect": "== 0" },
+    { "name": "성공 응답 수가 재고를 넘지 않음", "source": "success", "expect": "<= 100" }
+  ]
+}

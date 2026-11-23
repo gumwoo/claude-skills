@@ -1,0 +1,17 @@
+{
+  "target": "http://localhost:8080/api/events/1/purchase",
+  "method": "POST",
+  "headers": { "authorization": "Bearer {{var.token}}" },
+  "body": { "userId": "user-{{i % 150}}", "quantity": 1 },
+  "vars": { "token": ["테스트-토큰-1", "테스트-토큰-2"] },
+  "concurrency": 200,
+  "rounds": 10,
+  "success": [200, 201],
+  "reset": { "cmd": "psql \"postgresql://app:app@localhost:5432/app\" -c \"DELETE FROM orders WHERE event_id = 1; UPDATE events SET remaining = 100 WHERE id = 1;\"" },
+  "invariants": [
+    { "name": "판매 수량이 재고를 넘지 않음", "cmd": "psql \"postgresql://app:app@localhost:5432/app\" -tAc \"SELECT COUNT(*) FROM orders WHERE event_id = 1\"", "expect": "<= 100" },
+    { "name": "남은 수량 + 판매 수량 = 재고", "cmd": "psql \"postgresql://app:app@localhost:5432/app\" -tAc \"SELECT e.stock - e.remaining - (SELECT COUNT(*) FROM orders o WHERE o.event_id = e.id) FROM events e WHERE e.id = 1\"", "expect": "== 0" },
+    { "name": "한 사람이 두 번 구매하지 않음", "http": { "url": "http://localhost:8080/api/admin/events/1/stats" }, "path": "duplicateUsers", "expect": "== 0" },
+    { "name": "성공 응답 수가 재고를 넘지 않음", "source": "success", "expect": "<= 100" }
+  ]
+}
