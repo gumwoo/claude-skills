@@ -8,6 +8,7 @@ skill마다 폴더가 하나씩 있고, 각 폴더의 `README.md`에 만든 이�
 | Skill | 하는 일 |
 |---|---|
 | [new-project-setup](new-project-setup/) | 저장소에 검증 명령, 최소 지침 파일, 권한 규칙, Stop hook, verify skill, 읽기 전용 리뷰어를 설치한다 |
+| [infra-change-guard](infra-change-guard/) | 인프라를 바꾸기 전에 대상 환경을 확인하고 Terraform plan을 데이터 손실 관점에서 검토해, 사람이 승인한 plan만 적용하게 한다 |
 
 ## 설치
 
