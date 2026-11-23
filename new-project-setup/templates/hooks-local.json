@@ -1,0 +1,13 @@
+{
+  "Stop": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node \"<SCRIPT_ABSOLUTE_PATH>\"",
+          "timeout": 120
+        }
+      ]
+    }
+  ]
+}
