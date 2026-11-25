@@ -76,6 +76,12 @@ function provenance(x, where) {
   return out;
 }
 
+// 미결 목록(doc.json과 fill.json에서 같이 쓴다): [{ "item": "...", "reason": "...", "src": ["S1:3"] }]
+export function normalizePending(pending = []) {
+  if (!Array.isArray(pending) || !pending.every((p) => isObj(p) && typeof p.item === "string")) throw new Error('pending은 [{ "item": "...", "reason": "..." }] 형식이어야 합니다');
+  return pending.map((p, i) => ({ ...p, ...provenance(p, `pending[${i}]`) }));
+}
+
 export function normalize(doc) {
   if (!isObj(doc) || !Array.isArray(doc.blocks)) throw new Error("doc.blocks 배열이 필요합니다");
   const base = PRESETS[doc.preset ?? "report"];
@@ -118,9 +124,7 @@ export function normalize(doc) {
         throw new Error(`${where}: 알 수 없는 type ${b.type}`);
     }
   });
-  const pending = doc.pending ?? [];
-  if (!Array.isArray(pending) || !pending.every((p) => isObj(p) && typeof p.item === "string")) throw new Error('pending은 [{ "item": "...", "reason": "..." }] 형식이어야 합니다');
-  return { preset, page, number, blocks, meta: doc.meta ?? {}, pending };
+  return { preset, page, number, blocks, meta: doc.meta ?? {}, pending: normalizePending(doc.pending) };
 }
 
 // 병합을 풀어 격자 위치를 정한다. 가려지는 칸은 cells에 넣지 않는다(OWPML도 왼쪽 위 칸만 둔다)

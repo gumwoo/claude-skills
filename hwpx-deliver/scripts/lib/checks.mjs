@@ -35,6 +35,21 @@ export function hwpxUnits(doc) {
   return out;
 }
 
+// 양식 채우기(fill.json의 ops) → 검사할 글 조각. 반복 행은 칸마다. 행별 근거는 row_src, 아니면 op의 src
+export function fillUnits(ops) {
+  const out = [];
+  const arr = (x) => (x == null ? undefined : Array.isArray(x) ? x : [x]);
+  ops.forEach((op, i) => {
+    if (op.row_src != null && !(Array.isArray(op.row_src) && op.row_src.every((x) => x == null || typeof x === "string" || Array.isArray(x)))) throw new Error(`ops[${i}]: row_src는 행마다 조각 id 배열이어야 합니다(예: [["S1:3"], ["S1:4"]]). 모든 행에 같은 근거면 src를 쓰세요`);
+    if (Array.isArray(op.rows)) {
+      op.rows.forEach((row, r) => (row ?? []).forEach((v, c) => {
+        if (v != null && String(v).trim()) out.push({ where: `ops[${i}] ${op.table} ${Number(op.from_row ?? 1) + r}행 ${c + 1}열`, kind: "value", text: String(v), src: arr(op.row_src?.[r]) ?? arr(op.src), calc: op.calc });
+      }));
+    } else if (op.text != null && String(op.text).trim()) out.push({ where: `ops[${i}] ${op.at}`, kind: "para", text: String(op.text), src: arr(op.src), calc: op.calc });
+  });
+  return out;
+}
+
 // ---------- L1·L2·L3·F1: 글자 규칙 ----------
 const RULES = [
   // L1 대화·설명형: 대화에서 고객 문서로 흘러든 문장
@@ -127,6 +142,8 @@ export function facts(text) {
     const unit = m[2] ? (UNIT_ALIAS[m[2]] ?? m[2]) : "";
     // 단위 없는 작은 수(목록 번호, "1단계"의 1 등)는 대조하지 않는다
     if (!unit && value < 100 && !/,/.test(m[1])) continue;
+    // 공문 끝의 "붙임 … 1부"는 문서 관례라 대조하지 않는다(제출 부수 같은 다른 "부"는 대조한다)
+    if (unit === "부" && /붙임/.test(rest.slice(0, m.index).split("\n").pop())) continue;
     out.push({ key: `q:${value}:${unit}`, value, unit, kind: "qty", raw: m[0].trim() });
   }
   return out;

@@ -42,6 +42,8 @@ function readTranscript(lines) {
     if (pick[i]) { cur = { ...pick[i], lines: [], line: i + 1 }; units.push(cur); return; }
     if (cur) cur.lines.push(l); else if (l.trim()) meta.push(l.trim());
   });
+  // 머리줄 다음에 발언이 없는 줄이 많으면 회의록이 아니다("개회 14:00"처럼 시각이 붙은 일정표 등)
+  if (units.filter((u) => !u.lines.join("").trim()).length > units.length * 0.3) return null;
   return {
     kind: "transcript",
     meta,

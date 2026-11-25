@@ -168,7 +168,7 @@ const hwpx = buildHwpx(basic);
 
 // ---------- 2단계: 원자료 읽기 ----------
 const { readSource, readSources, listing, unitIndex, decodeText } = await imp("lib/sources.mjs");
-const { facts, koreanNumber, docUnits, textRules, sourceChecks } = await imp("lib/checks.mjs");
+const { facts, koreanNumber, docUnits, textRules, sourceChecks, fillUnits, isLabel } = await imp("lib/checks.mjs");
 const { deliverCheck } = await imp("deliver-check.mjs");
 const srcFiles = [fx("src/meeting-clova.txt"), fx("src/rfp.pdf.txt")];
 const SRC = readSources(srcFiles);
@@ -311,6 +311,156 @@ try {
     ok("deliver-check: HWPX의 자리표시자는 오류, 원자료에 없는 숫자는 경고", rt.status === 2 && /\[L2/.test(rt.stdout) && /찾지 못한 숫자: 9억 원/.test(rt.stdout), rt.stdout);
   } finally {
     fs.rmSync(tmp3, { recursive: true, force: true });
+  }
+}
+
+// ---------- 3단계: HWPX 양식 ----------
+// form1-giannmun.hwpx: 「행정업무의 운영 및 혁신에 관한 규정 시행규칙」 별지 제1호서식(기안문)을 한컴 2022로 HWPX 저장한 것(마지막 저장자 지움)
+// ledger.hwpx: 반복 행이 있는 대장 양식을 만들어 한컴 2022로 다시 저장한 것
+const { parseTemplate, scanTemplate, fillTemplate, replaceInPara, setParaText } = await imp("lib/hwpx-template.mjs");
+const FORM1 = fs.readFileSync(fx("forms/form1-giannmun.hwpx"));
+const LEDGER = fs.readFileSync(fx("forms/ledger.hwpx"));
+const opsOf = (f) => load(f).ops;
+const sec0 = (buf) => entry(buf, "Contents/section0.xml");
+{
+  const d = readHwpx(FORM1);
+  const t = d.blocks.find((b) => b.type === "table");
+  const body = t.cells.find((c) => c.row === 2 && c.col === 0);
+  ok("read: 표 안의 표 — 바깥 문단에 칸 글자가 새지 않음", d.blocks.filter((b) => b.type === "para").every((b) => !b.text.trim()), JSON.stringify(d.blocks.filter((b) => b.type === "para").map((b) => b.text.slice(0, 30))));
+  ok("read: 하위 표가 있는 칸의 주소·병합은 그 칸 자신의 것", body && body.colspan === 15 && body.tables.length === 2 && body.tables[1].cells[0].text === "발신명의", JSON.stringify(t.cells.slice(0, 4).map((c) => [c.row, c.col, c.colspan])));
+
+  const doc = parseTemplate(FORM1);
+  const s = doc.sections[0];
+  const p = (id) => s.paras.find((x) => x.id === id);
+  ok("template: 주소(칸·칸 안 문단·하위 표)", p("T1.r2c1.p5")?.text === "제목 " && p("T1.r3c1.T2.r1c1.p1")?.text === "발신명의" && s.tables.find((x) => x.id === "T1")?.rowCnt === 11);
+  const sug = scanTemplate(doc);
+  const hasS = (kind, f) => sug.some((x) => x.kind === kind && f(x));
+  ok("scan: 항목 이름 뒤에 적는 칸(수신·경유·제목)", ["T1.r2c1.p3", "T1.r2c1.p4", "T1.r2c1.p5"].every((at) => hasS("label-inline", (x) => x.at === at)), JSON.stringify(sug));
+  ok("scan: 본문 자리, 항목 이름 옆 빈 칸, 서식 안내문", hasS("body-area", (x) => x.at === "T1.r3c1" && x.empty === 20) && hasS("label-cell", (x) => x.at === "T1.r6c2" && x.label === "협조자") && hasS("guide", (x) => x.at === "T1.r11c1.p1"));
+  const lsug = scanTemplate(parseTemplate(LEDGER));
+  ok("scan: 자리표시자·○○○·반복 행", lsug.some((x) => x.kind === "placeholder" && x.key === "회의명") && lsug.some((x) => x.kind === "marker" && x.find === "○○○") && lsug.some((x) => x.kind === "repeat-rows" && x.table === "T1" && x.from_row === 2 && x.count === 4), JSON.stringify(lsug));
+}
+{
+  const r = fillTemplate(FORM1, opsOf("forms/fill-form1.json"));
+  const lines = textLines(readHwpx(r.buf));
+  const sx = sec0(r.buf), orig = sec0(FORM1);
+  ok("fill: 값이 들어가고 바꾼 자리표시 글자는 사라짐", ["한빛시립도서관", "수신  내부결재", "제목  도서관 누리집 개편 사업 착수 보고", "  나. 사업비: 120,000,000원(부가세 포함)", "한빛시립도서관장", "전화번호(031)123-4567"].every((l) => lines.includes(l)) && !lines.some((l) => /행 정 기 관 명|발신명의|도로명주소/.test(l)), JSON.stringify(lines.slice(0, 12)));
+  ok("fill: 서식 안내 행·머리 줄을 지우고 행 수 갱신", !/별지 제1호서식|이 난은 서식에/.test(sx) && /rowCnt="8"/.test(sx));
+  ok("fill: 구조 검사 통과, header.xml·mimetype 그대로", checkHwpx(r.buf).errors.length === 0 && entry(r.buf, "Contents/header.xml") === entry(FORM1, "Contents/header.xml") && readZip(r.buf)[0].name === "mimetype" && readZip(r.buf)[0].method === 0);
+  const paraOf = (xml, text) => { const i = xml.indexOf(text); return xml.slice(xml.lastIndexOf("<hp:p ", i), xml.indexOf("</hp:p>", i) + 7); };
+  ok("fill: 바꾼 문단만 줄 배치 정보(linesegarray)를 지움", !/linesegarray/.test(paraOf(sx, "한빛시립도서관</hp:t>")) && /linesegarray/.test(paraOf(sx, "협조자")), paraOf(sx, "한빛시립도서관</hp:t>").slice(0, 200));
+  const prOf = (xml, text) => paraOf(xml, text).match(/paraPrIDRef="(\d+)"/)[1];
+  ok("fill: like로 다른 문단 모양을 빌림(본문 = 제목 줄 모양)", prOf(sx, "1. 관련:") === prOf(sx, "제목  도서관") && prOf(orig, "제목 </hp:t>") === prOf(sx, "제목  도서관"));
+  // 하위 표(직인 상자)가 든 문단에 like를 써도 하위 표 안 글자 모양은 그대로
+  const lk = sec0(fillTemplate(FORM1, [{ at: "T1.r3c1.p21", text: "가", like: "T1.r2c1.p5" }]).buf);
+  const charOf = (xml, text) => paraOf(xml, text).match(/charPrIDRef="(\d+)"/)[1];
+  const styleCharOf = (xml) => charOf(xml, "제목 </hp:t>");
+  ok("fill: like는 문단 안 하위 표(직인)의 모양을 바꾸지 않음", charOf(lk, ">직인<") === charOf(orig, ">직인<") && charOf(orig, ">직인<") !== styleCharOf(orig), `${charOf(lk, ">직인<")} ${charOf(orig, ">직인<")}`);
+  ok("fill: 많이 길어진 글자는 기록에 경고", r.log.some((l) => /"발신명의" 바꿈 — 원래보다 4자 길어짐/.test(l)) && r.log.some((l) => l === 'T1.r4c1 "직위(직급) 서명" 바꿈'), r.log.join("\n"));
+}
+{
+  const r = fillTemplate(LEDGER, opsOf("forms/fill-ledger.json"));
+  const t = readHwpx(r.buf).blocks.find((b) => b.type === "table");
+  const rowText = (k) => t.cells.filter((c) => c.row === k).map((c) => c.text).join("|");
+  ok("fill: 반복 행 — 빈 행 4개를 채우고 2행을 더함", t.rowCnt === 8 && rowText(1) === "1|착수 보고 일정 확정|박책임|2027. 1. 15." && rowText(6) === "6|하자보수 기간 계약서 반영|김주무관|2027. 1. 10.", JSON.stringify([t.rowCnt, rowText(6)]));
+  ok("fill: 합계 행은 아래로 밀리고 행 주소가 차례대로", rowText(7) === "합계|6건" && [...new Set(t.cells.map((c) => c.row))].join(",") === "0,1,2,3,4,5,6,7");
+  ok("fill: 자리표시자·○○○ 바꿈", textLines(readHwpx(r.buf)).includes("회의명: 도서관 누리집 개편 착수 회의") && textLines(readHwpx(r.buf)).includes("작성자: 김주무관"));
+  const few = fillTemplate(LEDGER, [{ table: "T1", from_row: 2, rows: [["1", "a", "b", "c"]] }]);
+  const ft = readHwpx(few.buf).blocks.find((b) => b.type === "table");
+  ok("fill: 행이 남으면 그대로 두고 행 수 유지", ft.rowCnt === 6 && ft.cells.filter((c) => c.row === 5).map((c) => c.text).join("|") === "합계|");
+}
+{
+  // 글자가 run 두 개에 나뉜 경우, 탭이 섞인 경우
+  const p = '<hp:p id="0" paraPrIDRef="1" styleIDRef="0"><hp:run charPrIDRef="3"><hp:t>제</hp:t></hp:run><hp:run charPrIDRef="4"><hp:t>목 끝</hp:t></hp:run><hp:linesegarray><hp:lineseg/></hp:linesegarray></hp:p>';
+  const r = replaceInPara(p, "제목", "보고서");
+  ok("fill: run에 나뉜 글자 바꾸기(첫 run 모양을 따름)", r.count === 1 && r.xml.includes('<hp:run charPrIDRef="3"><hp:t>보고서</hp:t></hp:run><hp:run charPrIDRef="4"><hp:t> 끝</hp:t></hp:run>') && !r.xml.includes("linesegarray"), r.xml);
+  ok("fill: 탭이 섞인 글자는 바꾸지 않고 알림", throws(() => replaceInPara('<hp:p id="0"><hp:run charPrIDRef="1"><hp:t>가<hp:tab width="10"/>나</hp:t></hp:run></hp:p>', "가\t나", "x"), /탭·줄바꿈/));
+  ok("fill: 빈 run 문단에 글자 넣기", setParaText('<hp:p id="0" paraPrIDRef="1"><hp:run charPrIDRef="7"/></hp:p>', "a<b") === '<hp:p id="0" paraPrIDRef="1"><hp:run charPrIDRef="7"><hp:t>a&lt;b</hp:t></hp:run></hp:p>');
+  ok("fill: 없는 주소·없는 글자·여러 번 있는 글자는 멈춤", throws(() => fillTemplate(FORM1, [{ at: "T9.r1c1", text: "x" }]), /주소를 찾지 못했습니다: T9\.r1c1/) && throws(() => fillTemplate(FORM1, [{ at: "T1.r2c1", find: "없는 글자", text: "x" }]), /찾지 못했습니다/) && throws(() => fillTemplate(FORM1, [{ at: "T1.r5c1.p1", find: " ", text: "x" }]), /번 있습니다/));
+  const span = buildHwpx(normalize({ blocks: [{ type: "table", rows: [["가", { text: "나", rowspan: 2 }], ["다"]] }] }));
+  ok("fill: 세로 병합이 걸친 행은 지우지 않음", throws(() => fillTemplate(span, [{ delete_row: "T1.r2" }]), /세로로 병합/));
+  const tmp4 = fs.mkdtempSync(path.join(os.tmpdir(), "hwpx-deliver-tmpl-"));
+  try {
+    const sc = spawnSync(process.execPath, [path.join(scripts, "scan-template.mjs"), fx("forms/form1-giannmun.hwpx")], { encoding: "utf8" });
+    ok("scan-template: 명령줄", sc.status === 0 && /T1\.r3c1\.p1~p20: \(빈 문단 20개\)/.test(sc.stdout) && /본문 자리/.test(sc.stdout), sc.stderr);
+    const out = path.join(tmp4, "채움.hwpx");
+    const fl = spawnSync(process.execPath, [path.join(scripts, "fill-template.mjs"), fx("forms/ledger.hwpx"), fx("forms/fill-ledger.json"), "--out", out], { encoding: "utf8" });
+    ok("fill-template: 명령줄 0, 결과 파일", fl.status === 0 && fs.existsSync(out) && /구조 오류 없음/.test(fl.stdout), fl.stdout + fl.stderr);
+    const same = spawnSync(process.execPath, [path.join(scripts, "fill-template.mjs"), out, fx("forms/fill-ledger.json"), "--out", out], { encoding: "utf8" });
+    ok("fill-template: 양식 파일을 덮어쓰지 않음", same.status === 1 && /덮어쓰지 않습니다/.test(same.stderr));
+    const dc = spawnSync(process.execPath, [path.join(scripts, "deliver-check.mjs"), out], { encoding: "utf8" });
+    ok("deliver-check: 채운 양식도 검사(오류 없음)", dc.status === 0, dc.stdout);
+    // fill.json도 근거와 대조: 본문은 회의록 조각과 맞고, 근거 없는 시행일 숫자는 경고
+    const sj = path.join(tmp4, "sources.json");
+    fs.writeFileSync(sj, JSON.stringify(SRC));
+    const fc = spawnSync(process.execPath, [path.join(scripts, "deliver-check.mjs"), fx("forms/fill-form1.json"), "--sources", sj, "--report", path.join(tmp4, "internal")], { encoding: "utf8" });
+    ok("deliver-check: fill.json 검사(본문 숫자는 근거와 맞음, 근거 없는 숫자는 경고)", fc.status === 0 && /오류 0개/.test(fc.stdout) && /ops\[9\] T1\.r6c2: 근거\(src\) 없음 — 숫자가 있는 내용/.test(fc.stdout) && !/ops\[6\][^\n]*N1|N1[^\n]*ops\[6\]/.test(fc.stdout), fc.stdout);
+    const ev = fs.readFileSync(path.join(tmp4, "internal", "근거표.md"), "utf8");
+    ok("deliver-check: 양식 채우기 근거표·미결 목록", /## ops\[6\] T1\.r2c1/.test(ev) && /S1:3 \(meeting-clova\.txt, 김주무관 01:05\)/.test(ev) && /검토자·결재권자: 회의록에 없음/.test(fs.readFileSync(path.join(tmp4, "internal", "미결·확인필요.md"), "utf8")));
+  } finally {
+    fs.rmSync(tmp4, { recursive: true, force: true });
+  }
+}
+
+// ---------- 두 번째 검증에서 나온 경우(양식은 한컴 2022로 저장한 변형) ----------
+{
+  const V = (n) => fs.readFileSync(fx(`forms/variants/${n}.hwpx`));
+  const paras = (buf) => readHwpx(buf).blocks.filter((b) => b.type === "para" && b.text.trim()).map((b) => (b.sub ? `${b.sub}:` : "") + b.text);
+  const hdr = fillTemplate(V("ledger-header"), [{ at: "P1", text: "새 제목" }]);
+  ok("검증2: 머리말이 든 문단에 값을 넣어도 머리말은 그대로", JSON.stringify(paras(hdr.buf).slice(0, 2)) === JSON.stringify(["새 제목", "header:한빛시 내부 문서"]), JSON.stringify(paras(hdr.buf)));
+  ok("검증2: 머리말 글자는 본문 문단 글자에 붙지 않음(읽기·양식 지도)", paras(V("ledger-header"))[0] === "회의 결과 조치 관리대장" && parseTemplate(V("ledger-header")).sections[0].paras[0].text === "회의 결과 조치 관리대장");
+  const box = fillTemplate(V("ledger-textbox"), [{ at: "P2", find: "{{회의명}}", text: "착수 회의" }]);
+  ok("검증2: 글상자가 든 문단도 자기 글자만 바뀜", paras(box.buf).includes("회의명: 착수 회의") && paras(box.buf).includes("drawText:접수번호"), JSON.stringify(paras(box.buf)));
+  const tab = fillTemplate(V("ledger-tab"), [{ at: "P2", find: "{{회의명}}", text: "착수 회의" }]);
+  ok("검증2: 한컴이 hp:t 안에 둔 탭 옆 자리표시자도 바꿈(탭 유지)", /<hp:t>회의명:<hp:tab [^>]*\/>착수 회의<\/hp:t>/.test(sec0(tab.buf)) && paras(tab.buf).includes("회의명:\t착수 회의"));
+  ok("검증2: hp:t 안의 탭·줄바꿈을 읽음", readHwpx(V("ledger-tab")).blocks.some((b) => b.text === "회의명:\t{{회의명}}"));
+  const tot = fillTemplate(V("ledger-total-same-shape"), [{ table: "T1", from_row: 2, rows: [1, 2, 3, 4, 5, 6].map((n) => [String(n), "a", "b", "c"]) }]);
+  const tt = readHwpx(tot.buf).blocks.find((b) => b.type === "table");
+  ok("검증2: 반복 행 채우기가 같은 모양의 합계 행을 덮어쓰지 않음", tt.rowCnt === 8 && tt.cells.filter((c) => c.row === 7).map((c) => c.text).join("|") === "합계|||", JSON.stringify([tt.rowCnt, tt.cells.filter((c) => c.row === 7).map((c) => c.text)]));
+  ok("검증2: 위에서 세로 병합된 칸이 걸친 행은 반복 행으로 쓰지 않음(scan·fill)", !scanTemplate(parseTemplate(V("ledger-vmerge-above"))).some((x) => x.kind === "repeat-rows" && x.from_row <= 5) && throws(() => fillTemplate(V("ledger-vmerge-above"), [{ table: "T1", from_row: 3, rows: [["a", "b", "c"]] }]), /위 행에서 세로로 병합/));
+  const p1 = fillTemplate(LEDGER, [{ at: "P1", text: "제목1\n제목2" }]);
+  ok("검증2: 첫 문단에 여러 줄을 넣어도 구역 설정을 복제하지 않음", (sec0(p1.buf).match(/<hp:secPr\b/g) ?? []).length === 1 && paras(p1.buf).slice(0, 2).join("|") === "제목1|제목2");
+  const body = fillTemplate(FORM1, [{ at: "T1.r3c1", text: Array.from({ length: 23 }, (_, i) => `본문 ${i + 1}줄`).join("\n") }]);
+  const bc = readHwpx(body.buf).blocks.find((b) => b.type === "table").cells.find((c) => c.row === 2);
+  const bl = bc.text.split("\n");
+  ok("검증2: 본문 칸이 넘쳐도 직인·발신명의 상자 앞에 줄을 더함", bl.indexOf("본문 23줄") === 22 && bl.slice(23).every((l) => !l.trim()) && bc.tables.length === 2, JSON.stringify(bl.slice(18)));
+  const nl = fillTemplate(LEDGER, [{ at: "P2", find: "{{회의명}}", text: "첫줄\n둘째줄" }]);
+  ok("검증2: find로 넣는 글자의 줄바꿈은 <hp:lineBreak/>", sec0(nl.buf).includes("회의명: 첫줄<hp:lineBreak/>둘째줄") && paras(nl.buf).includes("회의명: 첫줄\n둘째줄"));
+  const dol = fillTemplate(LEDGER, [{ at: "T1.r2c2", text: "R$&D 예산 $' US$$ 100" }, { at: "P2", find: "{{회의명}}", text: "$1 $& 회의" }]);
+  ok("검증2: 값의 $&·$'·$$를 그대로 넣음", textLines(readHwpx(dol.buf)).includes("R$&D 예산 $' US$$ 100") && textLines(readHwpx(dol.buf)).includes("회의명: $1 $& 회의") && checkHwpx(dol.buf).errors.length === 0);
+  ok("검증2: find가 글자가 아니면 바로 멈춤", throws(() => fillTemplate(FORM1, [{ at: "T1.r1c1", find: 2016, text: "2026" }]), /find는 비어 있지 않은 글자/));
+  const pv = entry(fillTemplate(LEDGER, opsOf("forms/fill-ledger.json")).buf, "Preview/PrvText.txt");
+  ok("검증2: 미리보기 글도 채운 내용으로", /회의명: 도서관 누리집 개편 착수 회의\r\n/.test(pv) && /<1><착수 보고 일정 확정><박책임><2027\. 1\. 15\.>/.test(pv) && !/\{\{/.test(pv), pv.slice(0, 120));
+  const tmp5 = fs.mkdtempSync(path.join(os.tmpdir(), "hwpx-deliver-v2-"));
+  try {
+    const up = path.join(tmp5, "Ledger.hwpx");
+    fs.copyFileSync(fx("forms/ledger.hwpx"), up);
+    const r = spawnSync(process.execPath, [path.join(scripts, "fill-template.mjs"), up, fx("forms/fill-ledger.json"), "--out", path.join(tmp5, "ledger.hwpx")], { encoding: "utf8" });
+    ok("검증2: 대소문자만 다른 결과 경로로 양식을 덮어쓰지 않음(Windows·macOS)", process.platform === "linux" || (r.status === 1 && fs.readFileSync(up).equals(LEDGER)), r.stdout + r.stderr);
+  } finally {
+    fs.rmSync(tmp5, { recursive: true, force: true });
+  }
+  // 읽기·검사
+  const k = (t) => facts(t).map((f) => f.key).join(" ");
+  ok("검증2: 제출 부수·식 수는 대조, '붙임 … 1부'만 건너뜀", k("제안서 7부, 서버 5식") === "q:7:부 q:5:식" && k("붙임  회의 결과 1부.  끝.") === "");
+  const schedFile = path.join(os.tmpdir(), `hd-sched-${process.pid}.txt`);
+  fs.writeFileSync(schedFile, "착수 회의 일정\n\n개회 14:00\n사업 개요 보고 14:10\n질의응답 15:00\n\n장소: 3층 회의실\n");
+  const sched = readSource(schedFile, 1);
+  fs.rmSync(schedFile, { force: true });
+  ok("검증2: 시각이 붙은 일정표는 회의록으로 보지 않음", sched.kind === "text" && sched.units.some((u) => u.text.includes("개회 14:00")), JSON.stringify(sched.units));
+  ok("검증2: row_src를 문자열로 주면 형식 오류", throws(() => fillUnits([{ table: "T1", rows: [["가"]], row_src: "S1:3" }]), /row_src는 행마다/));
+  ok("검증2: 반복 행에 넣은 짧은 값도 검사·근거표 대상", fillUnits(opsOf("forms/fill-ledger.json")).filter((u) => u.text === "박책임").every((u) => !isLabel(u)));
+  const tmp6 = fs.mkdtempSync(path.join(os.tmpdir(), "hwpx-deliver-v2b-"));
+  try {
+    const w = (n, j) => { const p = path.join(tmp6, n); fs.writeFileSync(p, JSON.stringify(j)); return p; };
+    const dc = (args) => spawnSync(process.execPath, [path.join(scripts, "deliver-check.mjs"), ...args], { encoding: "utf8" });
+    ok("검증2: fill.json의 pending 형식도 검사", dc([w("a.json", { pending: ["검토자 미정"], ops: [{ at: "P1", text: "x" }] })]).status === 1);
+    const r2 = dc([w("b.json", { pending: [{ item: "x", src: "S1:3" }], ops: [{ at: "P1", text: "x 120,000원", src: ["S1:3"] }] }), "--report", path.join(tmp6, "r")]);
+    const pend = fs.readFileSync(path.join(tmp6, "r", "미결·확인필요.md"), "utf8");
+    ok("검증2: pending src가 문자열이어도 미결 목록을 씀, 원자료 없이 낸 보고는 그렇게 적음", r2.status === 0 && /- x \(S1:3\)/.test(pend) && /--sources\)을 받지 않아/.test(pend) && /원자료 목록을 받지 않아 대조하지 않음/.test(fs.readFileSync(path.join(tmp6, "r", "근거표.md"), "utf8")), r2.stderr + pend);
+    ok("검증2: ops 배열만 있는 fill.json도 검사", dc([w("c.json", [{ at: "P1", text: "말씀하신 내용" }])]).status === 2);
+  } finally {
+    fs.rmSync(tmp6, { recursive: true, force: true });
   }
 }
 

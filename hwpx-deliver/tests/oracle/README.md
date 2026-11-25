@@ -6,7 +6,7 @@ skill은 한컴오피스 없이 돈다. 이 폴더의 도구는 개발할 때만
 node tests/oracle/roundtrip.mjs tests/fixtures/doc-long.json long
 ```
 
-- `hancom-open.ps1`: 한컴 COM(`HWPFrame.HwpObject`)으로 열고 PDF·HWPX로 다시 저장하고, `GetTextFile("UNICODE")`로 텍스트를 뽑는다. 한컴은 임시 폴더 밖 파일을 열 때 '접근 허용' 창을 띄우므로 `%TEMP%` 아래 복사본만 다룬다.
+- `hancom-open.ps1`: 한컴 COM(`HWPFrame.HwpObject`)으로 HWPX나 HWP를 열고 PDF·HWPX로 다시 저장하고, `GetTextFile("UNICODE")`로 텍스트를 뽑는다. 한컴은 임시 폴더 밖 파일을 열 때 '접근 허용' 창을 띄우므로 `%TEMP%` 아래 복사본만 다룬다.
 - `compare_pdf.py`: 두 PDF의 줄 기준선 위치, 줄 끝 어절, 쪽별 첫·마지막 줄을 비교한다(PyMuPDF 필요). 같은 높이의 글자 조각은 실제 글자 상자 끝에서 3mm 안에 있을 때만 한 줄로 합친다(표 칸은 따로 남는다).
 - `expected/*.hancom.txt`: 한컴이 읽어 낸 텍스트. 저장소 시험(`tests/run-tests.mjs`)이 한컴 없이 이걸로 비교한다.
 

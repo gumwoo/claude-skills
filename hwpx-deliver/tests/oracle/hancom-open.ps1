@@ -6,14 +6,17 @@ $ErrorActionPreference = "Stop"
 $work = Join-Path $env:TEMP "hwpx-deliver-oracle"
 New-Item -ItemType Directory -Force $work | Out-Null
 $name = [IO.Path]::GetFileNameWithoutExtension($Hwpx)
-$src = Join-Path $work "$name.hwpx"
+# .hwp(바이너리)도 연다: 양식 원본을 HWPX로 바꿔 시험 자료를 만들 때 쓴다
+$ext = [IO.Path]::GetExtension($Hwpx).ToLower()
+$fmt = if ($ext -eq ".hwp") { "HWP" } else { "HWPX" }
+$src = Join-Path $work "$name$ext"
 if ((Resolve-Path $Hwpx).Path -ne $src) { Copy-Item $Hwpx $src -Force }
 if (-not $OutDir) { $OutDir = Split-Path (Resolve-Path $Hwpx).Path }
 $res = [ordered]@{ file = $Hwpx; opened = $false; pages = $null; saved_pdf = $false; saved_hwpx = $false; error = $null }
 $hwp = $null
 try {
   $hwp = New-Object -ComObject HWPFrame.HwpObject
-  $res.opened = [bool]$hwp.Open($src, "HWPX", "forceopen:true;versionwarning:false")
+  $res.opened = [bool]$hwp.Open($src, $fmt, "forceopen:true;versionwarning:false")
   if ($res.opened) {
     $res.pages = $hwp.PageCount
     $txt = $hwp.GetTextFile("UNICODE", "")
