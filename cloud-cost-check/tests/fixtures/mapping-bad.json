@@ -1,0 +1,5 @@
+{
+ "header_row": 3,
+ "columns": { "env": "A", "category": "B", "name": "C", "spec": "D", "unit_price": "E", "qty": "F", "months": "G", "amount": "H" },
+ "defaults": { "currency": "KRW", "unit": "월" }
+}

@@ -8,6 +8,7 @@
 - [race-check](race-check/): 재고·좌석·쿠폰처럼 공유 상태를 바꾸는 API에 요청을 동시에 보내 초과 판매나 중복 처리가 생기는지 확인하고 고칩니다.
 - [engineering-records](engineering-records/): 작업이 끝나면 트러블슈팅·개선·결정 기록이 필요한지 판정해 저장소 규칙대로 쓰고, 문서 속 숫자가 측정 원자료와 맞는지 검사합니다.
 - [review-verify](review-verify/): 다른 AI나 동료가 쓴 코드 리뷰를 받으면, 리뷰가 본 커밋·인용한 코드·CI 상태부터 대조하고 주장마다 맞음/틀림/이미 고쳐짐을 판정한 뒤 맞는 것만 고칩니다.
+- [cloud-cost-check](cloud-cost-check/): 클라우드 견적·사이징과 Terraform 구성을 요구사항과 대조해, 산식 오류와 빠진 비용을 찾고 과하게 잡은 곳과 모자란 곳을 근거와 함께 판정합니다.
 
 쓰고 싶은 폴더를 `~/.claude/skills/` 아래에 복사하면 됩니다.
 

@@ -1,0 +1,271 @@
+{
+ "format_version": "1.2",
+ "terraform_version": "1.9.8",
+ "errored": false,
+ "configuration": {
+  "root_module": {
+   "module_calls": {
+    "prod": {
+     "source": "./modules/stack",
+     "module": {
+      "resources": [
+       {
+        "address": "aws_autoscaling_group.app",
+        "mode": "managed",
+        "type": "aws_autoscaling_group",
+        "name": "app",
+        "expressions": {
+         "launch_template": [
+          {
+           "id": {
+            "references": [
+             "aws_launch_template.app.id",
+             "aws_launch_template.app"
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    "dev": {
+     "source": "./modules/stack",
+     "module": {
+      "resources": [
+       {
+        "address": "aws_autoscaling_group.app",
+        "mode": "managed",
+        "type": "aws_autoscaling_group",
+        "name": "app",
+        "expressions": {
+         "launch_template": [
+          {
+           "id": {
+            "references": [
+             "aws_launch_template.app.id",
+             "aws_launch_template.app"
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ "resource_changes": [
+  {
+   "address": "module.prod.aws_db_instance.main",
+   "mode": "managed",
+   "type": "aws_db_instance",
+   "name": "main",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "instance_class": "db.m6g.large",
+     "engine": "postgres",
+     "allocated_storage": 200,
+     "storage_type": "gp3",
+     "multi_az": true
+    }
+   }
+  },
+  {
+   "address": "module.prod.aws_nat_gateway.this[0]",
+   "mode": "managed",
+   "type": "aws_nat_gateway",
+   "name": "this",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "connectivity_type": "public"
+    }
+   }
+  },
+  {
+   "address": "module.prod.aws_nat_gateway.this[1]",
+   "mode": "managed",
+   "type": "aws_nat_gateway",
+   "name": "this",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "connectivity_type": "public"
+    }
+   }
+  },
+  {
+   "address": "module.prod.aws_vpc_endpoint.s3",
+   "mode": "managed",
+   "type": "aws_vpc_endpoint",
+   "name": "s3",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "service_name": "com.amazonaws.ap-northeast-2.s3",
+     "vpc_endpoint_type": "Gateway"
+    }
+   }
+  },
+  {
+   "address": "module.prod.aws_launch_template.app",
+   "mode": "managed",
+   "type": "aws_launch_template",
+   "name": "app",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "instance_type": "m7g.large"
+    }
+   }
+  },
+  {
+   "address": "module.prod.aws_autoscaling_group.app",
+   "mode": "managed",
+   "type": "aws_autoscaling_group",
+   "name": "app",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "min_size": 2,
+     "desired_capacity": 2,
+     "max_size": 8
+    }
+   }
+  },
+  {
+   "address": "module.prod.aws_cloudwatch_log_group.app",
+   "mode": "managed",
+   "type": "aws_cloudwatch_log_group",
+   "name": "app",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "retention_in_days": 30
+    }
+   }
+  },
+  {
+   "address": "module.dev.aws_db_instance.main",
+   "mode": "managed",
+   "type": "aws_db_instance",
+   "name": "main",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "instance_class": "db.t4g.medium",
+     "engine": "postgres",
+     "allocated_storage": 50,
+     "storage_type": "gp3",
+     "multi_az": false
+    }
+   }
+  },
+  {
+   "address": "module.dev.aws_nat_gateway.this[0]",
+   "mode": "managed",
+   "type": "aws_nat_gateway",
+   "name": "this",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "connectivity_type": "public"
+    }
+   }
+  },
+  {
+   "address": "module.dev.aws_launch_template.app",
+   "mode": "managed",
+   "type": "aws_launch_template",
+   "name": "app",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "instance_type": "t4g.large"
+    }
+   }
+  },
+  {
+   "address": "module.dev.aws_autoscaling_group.app",
+   "mode": "managed",
+   "type": "aws_autoscaling_group",
+   "name": "app",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "min_size": 1,
+     "desired_capacity": 1,
+     "max_size": 2
+    }
+   }
+  },
+  {
+   "address": "module.dev.aws_autoscaling_schedule.night",
+   "mode": "managed",
+   "type": "aws_autoscaling_schedule",
+   "name": "night",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "min_size": 0,
+     "max_size": 0,
+     "desired_capacity": 0,
+     "recurrence": "0 21 * * MON-FRI"
+    }
+   }
+  }
+ ]
+}

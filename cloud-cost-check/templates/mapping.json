@@ -1,0 +1,25 @@
+{
+ "header_row": 3,
+ "last_row": null,
+ "columns": {
+  "env": "A",
+  "category": "B",
+  "name": "C",
+  "spec": "D",
+  "unit_price": "E",
+  "unit": null,
+  "qty": "F",
+  "months": "G",
+  "hours_per_month": null,
+  "amount": "H",
+  "currency": null,
+  "pricing": null
+ },
+ "defaults": { "currency": "KRW", "unit": "월", "pricing": "unknown" },
+ "subtotal_pattern": "소계|subtotal",
+ "total_pattern": "^\\s*(공급가액\\s*|총\\s*)?(합계|총계|총액)|grand\\s*total|^\\s*total",
+ "fill_down": [],
+ "skip_pattern": null,
+ "category_map": {},
+ "confirmed": false
+}

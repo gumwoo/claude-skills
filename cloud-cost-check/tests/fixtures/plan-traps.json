@@ -1,0 +1,299 @@
+{
+ "format_version": "1.2",
+ "terraform_version": "1.9.8",
+ "errored": false,
+ "configuration": {
+  "root_module": {
+   "module_calls": {
+    "prod": {
+     "source": "./modules/stack",
+     "module": {
+      "resources": [
+       {
+        "address": "aws_autoscaling_group.app",
+        "mode": "managed",
+        "type": "aws_autoscaling_group",
+        "name": "app",
+        "expressions": {
+         "launch_template": [
+          {
+           "id": {
+            "references": [
+             "aws_launch_template.app.id",
+             "aws_launch_template.app"
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    "dev": {
+     "source": "./modules/stack",
+     "module": {
+      "resources": [
+       {
+        "address": "aws_autoscaling_group.app",
+        "mode": "managed",
+        "type": "aws_autoscaling_group",
+        "name": "app",
+        "expressions": {
+         "launch_template": [
+          {
+           "id": {
+            "references": [
+             "aws_launch_template.app.id",
+             "aws_launch_template.app"
+            ]
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ "resource_changes": [
+  {
+   "address": "module.prod.aws_db_instance.main",
+   "mode": "managed",
+   "type": "aws_db_instance",
+   "name": "main",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "instance_class": "db.m4.large",
+     "engine": "postgres",
+     "allocated_storage": 200,
+     "storage_type": "gp2",
+     "multi_az": false,
+     "tags": {
+      "Environment": "prod"
+     }
+    }
+   }
+  },
+  {
+   "address": "module.prod.aws_nat_gateway.this[0]",
+   "mode": "managed",
+   "type": "aws_nat_gateway",
+   "name": "this",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "connectivity_type": "public"
+    }
+   }
+  },
+  {
+   "address": "module.prod.aws_launch_template.app",
+   "mode": "managed",
+   "type": "aws_launch_template",
+   "name": "app",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "instance_type": "m5.large"
+    }
+   }
+  },
+  {
+   "address": "module.prod.aws_autoscaling_group.app",
+   "mode": "managed",
+   "type": "aws_autoscaling_group",
+   "name": "app",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "min_size": 4,
+     "desired_capacity": 4,
+     "max_size": 4
+    }
+   }
+  },
+  {
+   "address": "module.prod.aws_cloudwatch_log_group.app",
+   "mode": "managed",
+   "type": "aws_cloudwatch_log_group",
+   "name": "app",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "name": "/app/prod",
+     "retention_in_days": null
+    }
+   }
+  },
+  {
+   "address": "module.prod.aws_lb.api",
+   "mode": "managed",
+   "type": "aws_lb",
+   "name": "api",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "internal": false,
+     "load_balancer_type": "application"
+    }
+   }
+  },
+  {
+   "address": "module.dev.aws_db_instance.main",
+   "mode": "managed",
+   "type": "aws_db_instance",
+   "name": "main",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "instance_class": "db.t3.medium",
+     "engine": "postgres",
+     "allocated_storage": 50,
+     "storage_type": "gp3",
+     "multi_az": true
+    }
+   }
+  },
+  {
+   "address": "module.dev.aws_nat_gateway.this[0]",
+   "mode": "managed",
+   "type": "aws_nat_gateway",
+   "name": "this",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "connectivity_type": "public"
+    }
+   }
+  },
+  {
+   "address": "module.dev.aws_nat_gateway.this[1]",
+   "mode": "managed",
+   "type": "aws_nat_gateway",
+   "name": "this",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "connectivity_type": "public"
+    }
+   }
+  },
+  {
+   "address": "module.dev.aws_launch_template.app",
+   "mode": "managed",
+   "type": "aws_launch_template",
+   "name": "app",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "instance_type": "t3.large"
+    }
+   }
+  },
+  {
+   "address": "module.dev.aws_autoscaling_group.app",
+   "mode": "managed",
+   "type": "aws_autoscaling_group",
+   "name": "app",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "min_size": 1,
+     "desired_capacity": 1,
+     "max_size": 3
+    }
+   }
+  },
+  {
+   "address": "aws_iam_role.ci",
+   "mode": "managed",
+   "type": "aws_iam_role",
+   "name": "ci",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "before": null,
+    "after": {
+     "name": "ci"
+    }
+   }
+  },
+  {
+   "address": "module.old.aws_s3_bucket.gone",
+   "mode": "managed",
+   "type": "aws_s3_bucket",
+   "name": "gone",
+   "provider_name": "registry.terraform.io/hashicorp/aws",
+   "change": {
+    "actions": [
+     "delete"
+    ],
+    "before": {},
+    "after": null
+   }
+  },
+  {
+   "address": "data.aws_caller_identity.current",
+   "mode": "data",
+   "type": "aws_caller_identity",
+   "name": "current",
+   "change": {
+    "actions": [
+     "read"
+    ],
+    "before": null,
+    "after": {}
+   }
+  }
+ ]
+}

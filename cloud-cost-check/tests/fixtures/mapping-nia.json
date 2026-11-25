@@ -1,0 +1,5 @@
+{
+ "header_row": 1,
+ "columns": { "env": null, "name": "자원", "amount": "월 이용요금" },
+ "defaults": { "currency": "KRW", "months": 1, "env": "prod" }
+}

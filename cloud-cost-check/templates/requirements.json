@@ -1,0 +1,29 @@
+{
+ "sector": null,
+ "currency": "KRW",
+ "rounding": null,
+ "fx_rate": {},
+ "availability": null,
+ "budget_mode": null,
+ "environments": {
+  "prod": { "hours_per_month": 730, "availability": null },
+  "dev": { "hours_per_month": null }
+ },
+ "load": {
+  "target": null,
+  "concurrent_users": null,
+  "users_basis": "peak",
+  "request_interval_s": null,
+  "api_per_tx": null,
+  "peak_factor": null,
+  "headroom": null,
+  "unit_rps": null,
+  "unit_rps_measured": false,
+  "azs": null
+ },
+ "sizing_factors": null,
+ "common_infra_exists": null,
+ "commitment": null,
+ "thresholds": { "cpu_low": 20, "cpu_high": 70, "mem_low": 30, "mem_high": 80 },
+ "_sources": {}
+}

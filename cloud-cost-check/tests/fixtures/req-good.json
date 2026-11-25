@@ -1,0 +1,10 @@
+{
+ "sector": "private",
+ "currency": "KRW",
+ "availability": "multi-az",
+ "budget_mode": "metered",
+ "include_tax": false,
+ "include_support": false,
+ "commitment": "none",
+ "environments": { "prod": { "availability": "multi-az" }, "dev": { "hours_per_month": 220 } }
+}

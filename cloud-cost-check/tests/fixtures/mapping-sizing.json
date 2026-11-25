@@ -1,0 +1,5 @@
+{
+ "header_row": 1,
+ "columns": { "name": "A", "required": "B", "capacity_per_unit": "C", "provided_units": "D" },
+ "defaults": { "env": "prod" }
+}

@@ -1,0 +1,5 @@
+id,cpu_pct,mem_pct,period_days,stat
+vm-low,12,20,30,p95
+vm-hot,85,40,30,p95
+vm-nomem,10,,30,p95
+vm-short,40,50,7,p95

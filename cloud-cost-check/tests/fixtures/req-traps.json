@@ -1,0 +1,9 @@
+{
+ "sector": "private",
+ "currency": "KRW",
+ "availability": "multi-az",
+ "budget_mode": "fixed",
+ "environments": { "prod": { "availability": "multi-az" }, "개발": { "hours_per_month": 176 } },
+ "load": { "target": "app|WAS", "concurrent_users": 500, "request_interval_s": 10, "api_per_tx": 4, "peak_factor": 2, "headroom": 2, "unit_rps": 100, "unit_rps_measured": true, "azs": 2 },
+ "sizing_factors": { "growth": 1.3, "redundancy": 2, "applied_to": "always_on" }
+}
