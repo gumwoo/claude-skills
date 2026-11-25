@@ -166,5 +166,153 @@ const hwpx = buildHwpx(basic);
   }
 }
 
+// ---------- 2단계: 원자료 읽기 ----------
+const { readSource, readSources, listing, unitIndex, decodeText } = await imp("lib/sources.mjs");
+const { facts, koreanNumber, docUnits, textRules, sourceChecks } = await imp("lib/checks.mjs");
+const { deliverCheck } = await imp("deliver-check.mjs");
+const srcFiles = [fx("src/meeting-clova.txt"), fx("src/rfp.pdf.txt")];
+const SRC = readSources(srcFiles);
+const IDX = unitIndex(SRC);
+{
+  const s1 = SRC.sources[0];
+  ok("sources: 클로바노트 회의록을 발언 단위로", s1.kind === "transcript" && s1.units.filter((u) => /^S1:\d+$/.test(u.id)).length === 6);
+  const u2 = IDX.get("S1:2");
+  ok("sources: 발언의 화자·시각·여러 줄 내용", u2.speaker === "박책임" && u2.time === "00:21" && /6개월/.test(u2.text) && /둘째 주/.test(u2.text), JSON.stringify(u2));
+  ok("sources: 첫 발언 앞 줄(제목·일시·작성자)도 조각 h1~h3", IDX.get("S1:h2")?.text.startsWith("2026.11.20") && IDX.get("S1:h3")?.text === "김주무관" && !IDX.has("S1:h4"));
+  ok("sources: 클로바노트 꼬리말(clovanote.naver.com)은 발언에 붙지 않음", IDX.get("S1:6")?.text === "좋습니다. 다음 회의는 12월 4일 오후 3시에 하죠." && !/clovanote/.test(listing(SRC)));
+  const plain = readSource(fx("src/meeting-clova-plain.txt"), 1);
+  const pu = plain.units.filter((u) => !u.id.includes(":h"));
+  ok("sources: 작성자·시간을 뺀 클로바노트도 발언 단위로(빈 줄로 나눔)", plain.kind === "transcript" && plain.units[1].text.startsWith("2026.11.27") && pu.length === 4 && pu.every((u) => u.speaker === null) && pu[2].text.includes("\n검색 결과도"), JSON.stringify(plain.units));
+  ok("sources: 이름을 바꾼 화자와 '참석자 3'", IDX.get("S1:3").speaker === "김주무관" && IDX.get("S1:4").speaker === "참석자 3");
+  ok("sources: 쪽 표시 텍스트(=== p.2 ===)를 쪽.문단으로", IDX.get("S2:p2.4")?.text.includes("12개월") && IDX.get("S2:p1.1")?.text.includes("제안요청서"));
+  ok("sources: 목록 줄은 한 줄씩 나눔", IDX.get("S2:p2.2")?.text === "- 웹 접근성 품질인증을 받을 것");
+  ok("sources: 목록에 조각 id와 화자", /S1:2 \(박책임 00:21\): 네\. 사업 기간/.test(listing(SRC)));
+}
+const tmp2 = fs.mkdtempSync(path.join(os.tmpdir(), "hwpx-deliver-src-"));
+const put = (name, data) => { const p = path.join(tmp2, name); fs.writeFileSync(p, data); return p; };
+try {
+  const t1 = readSource(put("a.txt", "00:00\n안녕하세요.\n\n00:15\n다음 안건입니다.\n"), 1);
+  ok("sources: 시각만 있는 회의록(참석자 옵션 끔)", t1.kind === "transcript" && t1.units.length === 2 && t1.units[1].time === "00:15" && t1.units[1].speaker === null);
+  // 클로바노트에서 작성자만 / 시간만 넣은 모양(실제 파일로는 아직 확인하지 못함): 발언 앞 줄이 "참석자 1" 또는 "00:00"
+  const head = "회의\n2026.11.27 금 오전 10:05 ・ 1분\n김주무관\n\n\n";
+  const foot = "\n\nclovanote.naver.com\n";
+  const so = readSource(put("so.txt", head + "참석자 1\n네 시작하겠습니다.\n\n참석자 2\n네.\n\n참석자 1\n그럼 B안으로 하죠.\n둘째 줄" + foot), 1);
+  ok("sources: 작성자만 넣은 클로바노트", so.units.filter((u) => u.speaker).map((u) => `${u.speaker}:${u.text}`).join("|") === "참석자 1:네 시작하겠습니다.|참석자 2:네.|참석자 1:그럼 B안으로 하죠.\n둘째 줄", JSON.stringify(so.units));
+  const to = readSource(put("to.txt", head + "00:00\n네 시작하겠습니다.\n\n00:12\n네." + foot), 1);
+  ok("sources: 시간만 넣은 클로바노트", to.units.filter((u) => u.time).map((u) => `${u.time}:${u.text}`).join("|") === "00:00:네 시작하겠습니다.|00:12:네." && to.units[0].id === "S1:h1", JSON.stringify(to.units));
+  const t2 = readSource(put("b.txt", "회의는 10:30\n에 시작했다.\n\n둘째 문단\n"), 1);
+  ok("sources: 시각이 한 번 나오는 글은 회의록으로 보지 않음", t2.kind === "text" && t2.units.length === 2);
+  const md = readSource(put("c.md", "# 제목\n\n- 첫째\n- 둘째\n\n일반 문단\n이어지는 줄\n"), 1);
+  ok("sources: 마크다운 문단과 목록", md.units.map((u) => u.text).join("|") === "# 제목|- 첫째|- 둘째|일반 문단\n이어지는 줄");
+  ok("sources: CP949 텍스트", decodeText(Buffer.from([0xc7, 0xd1, 0xb1, 0xdb])) === "한글");
+  ok("sources: UTF-16 BOM 텍스트", decodeText(Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from("회의", "utf16le")])) === "회의");
+  ok("sources: UTF-8 BOM 제거", decodeText(Buffer.from([0xef, 0xbb, 0xbf, 0x61])) === "a");
+
+  // DOCX: 가로 병합(gridSpan), 세로 병합(vMerge), 지운 글자(delText), 탭
+  const tc = (inner, pr = "") => `<w:tc><w:tcPr>${pr}</w:tcPr>${inner}</w:tc>`;
+  const wp = (t) => `<w:p><w:r><w:t>${t}</w:t></w:r></w:p>`;
+  const docXml = `<?xml version="1.0"?><w:document xmlns:w="w"><w:body>${wp("첫 문단")}<w:p><w:r><w:t>남김</w:t></w:r><w:r><w:delText>지운 글</w:delText></w:r><w:r><w:tab/><w:t xml:space="preserve">탭 뒤</w:t></w:r></w:p>`
+    + `<w:tbl><w:tr>${tc(wp("구분"), '<w:gridSpan w:val="2"/>')}${tc(wp("값"))}</w:tr><w:tr>${tc(wp("A"), '<w:vMerge w:val="restart"/>')}${tc(wp("B"))}${tc(wp("1,000원"))}</w:tr><w:tr>${tc(wp(""), "<w:vMerge/>")}${tc(wp("C"))}${tc(wp("2,000원"))}</w:tr></w:tbl>${wp("표 다음")}<w:sectPr/></w:body></w:document>`;
+  const dx = readSource(put("d.docx", writeZip([{ name: "[Content_Types].xml", data: "<Types/>" }, { name: "word/document.xml", data: docXml }])), 3);
+  const dm = Object.fromEntries(dx.units.map((u) => [u.id, u.text]));
+  ok("sources: DOCX 문단(지운 글자 제외, 탭)", dm["S3:1"] === "첫 문단" && dm["S3:2"] === "남김\t탭 뒤" && dm["S3:3"] === "표 다음", JSON.stringify(dm));
+  ok("sources: DOCX 표 칸 위치(가로·세로 병합)", dm["S3:t1.r1c1"] === "구분" && dm["S3:t1.r1c3"] === "값" && dm["S3:t1.r2c1"] === "A" && dm["S3:t1.r3c3"] === "2,000원" && !("S3:t1.r3c1" in dm), JSON.stringify(Object.keys(dm)));
+
+  // XLSX: 공유 문자열(읽기 표시 rPh 제외), 인라인 문자열, 숫자, 날짜 서식, 논리값
+  const xl = writeZip([
+    { name: "xl/workbook.xml", data: `<workbook xmlns:r="r"><sheets><sheet name="견적" sheetId="1" r:id="rId1"/></sheets></workbook>` },
+    { name: "xl/_rels/workbook.xml.rels", data: `<Relationships><Relationship Id="rId1" Type="ws" Target="worksheets/sheet1.xml"/></Relationships>` },
+    { name: "xl/sharedStrings.xml", data: `<sst><si><t>항목</t></si><si><r><t>금</t></r><r><t>액</t></r><rPh><t>きん</t></rPh></si></sst>` },
+    { name: "xl/styles.xml", data: `<styleSheet><numFmts><numFmt numFmtId="176" formatCode="yyyy&quot;년&quot; m&quot;월&quot;"/></numFmts><cellXfs><xf numFmtId="0"/><xf numFmtId="14"/><xf numFmtId="176"/></cellXfs></styleSheet>` },
+    { name: "xl/worksheets/sheet1.xml", data: `<worksheet><sheetData><row r="1"><c r="B1" t="s"><v>1</v></c><c r="A1" t="s"><v>0</v></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>서버</t></is></c><c r="B2"><v>1200000</v></c><c r="C2" s="1"><v>46023</v></c><c r="D2" s="2"><v>46388</v></c><c r="E2" t="b"><v>1</v></c><c r="F2"/></row></sheetData></worksheet>` },
+  ]);
+  const xs = readSource(put("e.xlsx", xl), 4);
+  const xm = Object.fromEntries(xs.units.map((u) => [u.id, u.text]));
+  ok("sources: XLSX 셀(공유·인라인 문자열, 숫자, 순서)", xs.units[0].id === "S4:견적!A1" && xm["S4:견적!B1"] === "금액" && xm["S4:견적!A2"] === "서버" && xm["S4:견적!B2"] === "1200000", JSON.stringify(xm));
+  ok("sources: XLSX 날짜 서식(기본·사용자) 셀은 날짜로", xm["S4:견적!C2"] === "2026-01-01" && xm["S4:견적!D2"] === "2027-01-01" && xm["S4:견적!E2"] === "TRUE" && !("S4:견적!F2" in xm), JSON.stringify(xm));
+
+  // HWPX: 1단계로 만든 문서를 원자료로 읽기
+  const hx = readSource(put("f.hwpx", buildHwpx(normalize(load("doc-basic.json")))), 5);
+  ok("sources: HWPX 문단과 표 칸(머리 칸 표시)", hx.units.some((u) => /^S5:\d+$/.test(u.id)) && hx.units.some((u) => u.id === "S5:t1.r1c1" && u.header), JSON.stringify(hx.units.slice(0, 3)));
+
+  ok("sources: PDF는 읽지 않고 방법을 알림", throws(() => readSource(put("g.pdf", "%PDF-1.4"), 6), /=== p\.3 ===/));
+  ok("sources: 바이너리 HWP는 아직 못 읽는다고 알림", throws(() => readSource(put("h.hwp", "x"), 6), /HWPX로 저장/));
+  const cli = spawnSync(process.execPath, [path.join(scripts, "read-sources.mjs"), fx("src/meeting-clova.txt"), path.join(tmp2, "없음.txt"), "--out", path.join(tmp2, "out")], { encoding: "utf8" });
+  ok("read-sources: 읽지 못한 파일이 있으면 1, 읽은 것은 남김", cli.status === 1 && /없음\.txt: 파일이 없습니다/.test(cli.stderr) && fs.existsSync(path.join(tmp2, "out", "sources.txt")), cli.stderr);
+} finally {
+  fs.rmSync(tmp2, { recursive: true, force: true });
+}
+
+// ---------- 2단계: 숫자 사실 ----------
+{
+  const k = (t) => facts(t).map((f) => f.key).join(" ");
+  ok("facts: 한국어 금액(억·만·쉼표) 같은 값", k("1억 2,000만 원") === "q:120000000:원" && k("120,000,000원") === "q:120000000:원" && k("1.5억 원") === "q:150000000:원" && k("3백만 원") === "q:3000000:원");
+  ok("facts: 4만 5천 명, 68%", k("4만 5천 명") === "q:45000:명" && k("68퍼센트") === "q:68:%");
+  ok("facts: 날짜 표기 여러 가지를 같은 값으로", k("2027년 1월 5일") === "d:2027-01-05" && k("2027. 1. 5.") === "d:2027-01-05" && k("2027-01-05") === "d:2027-01-05" && k("6월 30일") === "md:06-30");
+  ok("facts: 시각(오후 3시, 오후 2:00, 14:30)", k("오후 3시") === "t:15:00" && k("오후 2:00") === "t:14:00" && k("14:30") === "t:14:30" && k("오전 12:30") === "t:00:30");
+  ok("facts: 식별자·목록 번호·작은 수는 대조하지 않음", k("REQ-001 항목") === "" && k("1. 사업 개요") === "" && k("2단계") === "q:2:단계");
+  ok("facts: koreanNumber", koreanNumber("3억 5천만") === 350000000 && koreanNumber("1,234") === 1234);
+}
+
+// ---------- 2단계: 납품 전 검사 ----------
+{
+  const base = load("doc-sourced.json");
+  const run = (doc, idx = IDX) => { const m = normalize(doc); const u = docUnits(m); return [...textRules(u), ...sourceChecks(u, idx)]; };
+  const clean = run(base);
+  ok("check: 근거를 붙인 정상 문서는 오류·경고 없음", !clean.some((f) => f.level !== "info"), JSON.stringify(clean));
+  const withBlock = (b) => ({ ...base, blocks: [...base.blocks, b] });
+  const has = (fs_, id, level, re) => fs_.some((f) => f.id === id && f.level === level && (!re || re.test(f.msg + " " + f.text)));
+  ok("check L1: 대화체 문장", has(run(withBlock({ type: "para", text: "말씀하신 대로 일정을 정리해 드렸습니다.", src: ["S1:2"] })), "L1", "error"));
+  ok("check L1: 1인칭(제가)", has(run(withBlock({ type: "para", text: "제가 보기에는 일정이 촉박하다.", src: ["S1:2"] })), "L1", "error"));
+  ok("check L1: 회의록 말투(해요체) 경고", has(run(withBlock({ type: "para", text: "모바일 비율이 68%예요.", src: ["S1:4"] })), "L1", "warn", /해요체/));
+  ok("check L1: '필요.'로 끝나는 개조식은 해요체로 보지 않음", !run(withBlock({ type: "list", text: "추가 인력 투입 필요.", src: ["S1:5"] })).some((f) => f.id === "L1"));
+  ok("check L2: 자리표시자 {{ }}", has(run({ ...base, blocks: base.blocks.map((b, i) => (i === 2 ? { ...b, rows: [...b.rows, ["장소", "{{장소}}"]] } : b)) }), "L2", "error"));
+  ok("check L2: 작성 필요 표시", has(run(withBlock({ type: "para", text: "추진 체계: 작성 필요", src: ["S1:2"] })), "L2", "error"));
+  ok("check L2: '확인 필요'는 경고", has(run(withBlock({ type: "para", text: "예산 세부 내역 확인 필요", src: ["S1:3"] })), "L2", "warn"));
+  ok("check F1: 2026-12-04 표기", has(run(withBlock({ type: "para", text: "차기 회의는 2026-12-04에 연다.", src: ["S1:6"] })), "F1", "warn", /온점/));
+  ok("check F1: 천 단위 쉼표 빠짐", has(run(withBlock({ type: "para", text: "사업비 120000000원", src: ["S1:3"] })), "F1", "warn", /쉼표/));
+  ok("check N1: 원자료에 없는 금액은 오류", has(run(withBlock({ type: "para", text: "사업비는 1억 3,000만 원이다.", src: ["S1:3"] })), "N1", "error", /1억 3,000만 원/));
+  ok("check N1: 다른 조각에 있는 숫자는 src를 고치라고", has(run(withBlock({ type: "para", text: "월 방문자 45,000명", src: ["S1:3"] })), "N1", "warn", /S1:4에 있음/));
+  ok("check N1: 계산식(calc)에 있는 숫자는 근거로 침", !run(base).some((f) => f.id === "N1") && has(run(withBlock({ type: "para", text: "월 평균 30,000,000원", calc: "120,000,000원 ÷ 6개월 = 20,000,000원" })), "N1", "error"));
+  ok("check N1: 원자료의 '6월 30일'은 문서의 2027. 6. 30.과 같음", !run(base).some((f) => /6\. 30/.test(f.text)));
+  ok("check C1: 숫자가 있는데 근거 없음은 경고", has(run(withBlock({ type: "para", text: "하자보수 12개월" })), "C1", "warn"));
+  ok("check C1: 없는 조각 id는 오류", has(run(withBlock({ type: "para", text: "x", src: ["S9:1"] })), "C1", "error", /S9:1/));
+  ok("check L3: 군더더기 말이 3번 이상", has(run(withBlock({ type: "para", text: "다양한 기능, 다양한 화면, 다양한 서비스", src: ["S1:5"] })), "L3", "info"));
+  ok("model: src 형식 검사", throws(() => normalize({ blocks: [{ type: "para", text: "x", src: [1] }] }), /src는/) && throws(() => normalize({ pending: ["x"], blocks: [] }), /pending/));
+}
+
+// ---------- 2단계: 명령줄과 고객 문서 분리 ----------
+{
+  const tmp3 = fs.mkdtempSync(path.join(os.tmpdir(), "hwpx-deliver-check-"));
+  try {
+    const sj = path.join(tmp3, "sources.json");
+    fs.writeFileSync(sj, JSON.stringify(SRC));
+    const dc = (args) => spawnSync(process.execPath, [path.join(scripts, "deliver-check.mjs"), ...args], { encoding: "utf8" });
+    const r0 = dc([fx("doc-sourced.json"), "--sources", sj, "--report", path.join(tmp3, "internal")]);
+    ok("deliver-check: 정상 문서 0", r0.status === 0 && /오류 0개, 경고 0개/.test(r0.stdout), r0.stdout + r0.stderr);
+    const ev = fs.readFileSync(path.join(tmp3, "internal", "근거표.md"), "utf8");
+    ok("deliver-check: 근거표에 원자료 발언과 화자", /S1:3 \(meeting-clova\.txt, 김주무관 01:05\): 예산은 1억 2,000만 원/.test(ev) && /계산: 120,000,000원 ÷ 6개월/.test(ev) && !/## blocks\[2\] 2행 1열/.test(ev), ev.slice(0, 400));
+    const pend = fs.readFileSync(path.join(tmp3, "internal", "미결·확인필요.md"), "utf8");
+    ok("deliver-check: 미결 목록", /회의 장소: 회의록과 제안요청서에 없음/.test(pend) && fs.existsSync(path.join(tmp3, "internal", "검사결과.md")));
+    const bad = { ...load("doc-sourced.json") };
+    bad.blocks = [...bad.blocks, { type: "para", text: "말씀하신 사업비 1억 3,000만 원", src: ["S1:3"] }];
+    fs.writeFileSync(path.join(tmp3, "bad.json"), JSON.stringify(bad));
+    const r1 = dc([path.join(tmp3, "bad.json"), "--sources", sj]);
+    ok("deliver-check: 오류가 있으면 2", r1.status === 2 && /\[L1/.test(r1.stdout) && /\[N1/.test(r1.stdout), r1.stdout);
+    // 고객 문서에는 근거·미결·계산식이 들어가지 않는다
+    const out = build(load("doc-sourced.json"), { outDir: tmp3, name: "고객", pdf: false });
+    const sec = entry(fs.readFileSync(out.hwpx), "Contents/section0.xml");
+    const html = fs.readFileSync(out.html, "utf8");
+    ok("build: 근거 id·미결·계산식은 HWPX·HTML에 없음", !/S1:|S2:|회의 장소|÷/.test(sec) && !/S1:|S2:|회의 장소|÷/.test(html) && /120,000,000원/.test(sec));
+    const rh = dc([out.hwpx, "--sources", sj]);
+    ok("deliver-check: HWPX도 검사(구조·글자·숫자)", rh.status === 0 && /오류 0개/.test(rh.stdout), rh.stdout);
+    const trap = build({ ...load("doc-sourced.json"), blocks: [{ type: "para", text: "장소: {{장소}}, 예산 9억 원" }] }, { outDir: tmp3, name: "함정", pdf: false });
+    const rt = dc([trap.hwpx, "--sources", sj]);
+    ok("deliver-check: HWPX의 자리표시자는 오류, 원자료에 없는 숫자는 경고", rt.status === 2 && /\[L2/.test(rt.stdout) && /찾지 못한 숫자: 9억 원/.test(rt.stdout), rt.stdout);
+  } finally {
+    fs.rmSync(tmp3, { recursive: true, force: true });
+  }
+}
+
 console.log(`\n${pass} 통과, ${fail} 실패`);
 process.exit(fail ? 1 : 0);

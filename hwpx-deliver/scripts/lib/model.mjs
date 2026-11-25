@@ -7,7 +7,10 @@
 //             "number": false | { "side": "-" } },          쪽 번호(기본: 아래 가운데 "- 1 -". 위치는 bottom-center만)
 //   "meta": { "title": "..." },
 //   "fonts": { "body": "함초롬바탕", "head": "함초롬돋움" },                              (선택)
+//   "pending": [{ "item": "사업 기간", "reason": "원자료에 없음" }],                      (선택) 미결·확인필요 목록. 고객 문서에는 안 나간다
 //   "blocks": [
+//     (모든 블록·표 칸) "src": ["S1:12", "S2:t1.r3c2"]   원자료 조각 id(read-sources.mjs). 고객 문서에는 안 나간다
+//                      "calc": "1,200 + 800 = 2,000"     원자료 숫자로 계산한 값이면 계산식(숫자 대조에서 이 식의 숫자는 근거로 친다)
 //     { "type": "title", "text": "..." },
 //     { "type": "heading", "level": 1, "text": "1. 사업 개요" },
 //     { "type": "para", "text": "..." }                         text는 문자열 또는 [{ "t": "...", "b": true }]
@@ -58,6 +61,21 @@ export function runsOf(text) {
 export const plainText = (text) => runsOf(text).map((r) => r.t).join("");
 
 // 모델을 검사하고 서식을 합쳐 돌려준다. 잘못된 모델은 어디가 잘못됐는지 말하고 멈춘다
+// 근거 표시(src, calc)를 검사해 돌려준다. 고객 문서(HWPX·HTML)는 이 값을 쓰지 않는다
+function provenance(x, where) {
+  const out = {};
+  if (x.src != null) {
+    const src = typeof x.src === "string" ? [x.src] : x.src;
+    if (!Array.isArray(src) || !src.every((s) => typeof s === "string" && s.trim())) throw new Error(`${where}: src는 조각 id 문자열 배열이어야 합니다(예: ["S1:12"])`);
+    out.src = src.map((s) => s.trim());
+  }
+  if (x.calc != null) {
+    if (typeof x.calc !== "string") throw new Error(`${where}: calc는 문자열이어야 합니다`);
+    out.calc = x.calc;
+  }
+  return out;
+}
+
 export function normalize(doc) {
   if (!isObj(doc) || !Array.isArray(doc.blocks)) throw new Error("doc.blocks 배열이 필요합니다");
   const base = PRESETS[doc.preset ?? "report"];
@@ -74,25 +92,25 @@ export function normalize(doc) {
     if (!isObj(b) || !b.type) throw new Error(`${where}: type이 없습니다`);
     switch (b.type) {
       case "title":
-        return { type: "title", style: "title", runs: runsOf(b.text) };
+        return { type: "title", style: "title", runs: runsOf(b.text), ...provenance(b, where) };
       case "heading": {
         const lv = b.level ?? 1;
         if (![1, 2, 3].includes(lv)) throw new Error(`${where}: heading level은 1~3`);
-        return { type: "heading", style: `h${lv}`, runs: runsOf(b.text) };
+        return { type: "heading", style: `h${lv}`, runs: runsOf(b.text), ...provenance(b, where) };
       }
       case "para":
-        return { type: "para", style: "body", runs: runsOf(b.text), align: b.align };
+        return { type: "para", style: "body", runs: runsOf(b.text), align: b.align, ...provenance(b, where) };
       case "list": {
         const lv = b.level ?? 1;
         if (![1, 2, 3].includes(lv)) throw new Error(`${where}: list level은 1~3`);
-        return { type: "list", style: `list${lv}`, marker: b.marker ?? preset.markers[lv], runs: runsOf(b.text) };
+        return { type: "list", style: `list${lv}`, marker: b.marker ?? preset.markers[lv], runs: runsOf(b.text), ...provenance(b, where) };
       }
       case "table": {
         if (!Array.isArray(b.rows) || !b.rows.length) throw new Error(`${where}: rows가 비었습니다`);
         const grid = layoutTable(b, where);
         const widths = b.widths_mm ?? Array(grid.cols).fill((page.width_mm - page.margin_mm.left - page.margin_mm.right) / grid.cols);
         if (widths.length !== grid.cols) throw new Error(`${where}: widths_mm는 ${grid.cols}개여야 합니다(지금 ${widths.length}개)`);
-        return { type: "table", widths_mm: widths, header_rows: b.header_rows ?? 1, ...grid };
+        return { type: "table", widths_mm: widths, header_rows: b.header_rows ?? 1, ...grid, ...provenance(b, where) };
       }
       case "pagebreak":
         return { type: "pagebreak" };
@@ -100,7 +118,9 @@ export function normalize(doc) {
         throw new Error(`${where}: 알 수 없는 type ${b.type}`);
     }
   });
-  return { preset, page, number, blocks, meta: doc.meta ?? {} };
+  const pending = doc.pending ?? [];
+  if (!Array.isArray(pending) || !pending.every((p) => isObj(p) && typeof p.item === "string")) throw new Error('pending은 [{ "item": "...", "reason": "..." }] 형식이어야 합니다');
+  return { preset, page, number, blocks, meta: doc.meta ?? {}, pending };
 }
 
 // 병합을 풀어 격자 위치를 정한다. 가려지는 칸은 cells에 넣지 않는다(OWPML도 왼쪽 위 칸만 둔다)
@@ -118,7 +138,7 @@ function layoutTable(b, where) {
       for (let dr = 0; dr < rowspan; dr++) for (let dc = 0; dc < colspan; dc++) {
         (occupied[r + dr] ??= [])[c + dc] = true;
       }
-      cells.push({ row: r, col: c, colspan, rowspan, runs: runsOf(cell.text ?? ""), align: cell.align });
+      cells.push({ row: r, col: c, colspan, rowspan, runs: runsOf(cell.text ?? ""), align: cell.align, ...provenance(cell, `${where}.rows[${r}]`) });
       c += colspan;
       cols = Math.max(cols, c);
     }
