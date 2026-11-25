@@ -25,12 +25,12 @@ function styleCss(m, key, st) {
 }
 
 // 글꼴 값을 재서 문단별 보정 규칙을 만든다. data-l(줄 간격 배수)을 가진 문단마다 적용
-const FIXUP = `(function(){
+export const FIXUP = `(function(){
 var c=document.createElement('canvas').getContext('2d'),cache={},rules=[];
 function metrics(font,bold){var k=font+bold;if(cache[k])return cache[k];c.font=(bold?'700 ':'400 ')+'100px "'+font+'"';var sp=c.measureText(' ').width/100,g=c.measureText('\\uAC00');return cache[k]={sp:sp,asc:g.fontBoundingBoxAscent/100,desc:g.fontBoundingBoxDescent/100};}
-var seen={};document.querySelectorAll('p[data-k]').forEach(function(p){var k=p.getAttribute('data-k');if(seen[k])return;seen[k]=1;var cs=getComputedStyle(p),f=cs.fontFamily.replace(/"/g,''),b=parseInt(cs.fontWeight)>=600,L=parseFloat(p.getAttribute('data-l')),m=metrics(f,b);
-var shift=((L+m.asc-m.desc)/2-${HANCOM.baseline});rules.push('p[data-k="'+k+'"]{position:relative;top:'+(-shift).toFixed(4)+'em;word-spacing:'+(${HANCOM.space_em}-m.sp).toFixed(4)+'em}');
-if(p.closest('td'))rules.push('td p[data-k="'+k+'"]{margin-top:'+(-(L-1)).toFixed(4)+'em;top:'+(L-1-shift).toFixed(4)+'em}');});
+var seen={};document.querySelectorAll('[data-k]').forEach(function(p){var k=p.getAttribute('data-k');if(seen[k])return;seen[k]=1;var cs=getComputedStyle(p),f=cs.fontFamily.split(',')[0].replace(/"/g,'').trim(),b=parseInt(cs.fontWeight)>=600,L=parseFloat(p.getAttribute('data-l')),m=metrics(f,b);
+var shift=((L+m.asc-m.desc)/2-${HANCOM.baseline});rules.push('[data-k="'+k+'"]{position:relative;top:'+(-shift).toFixed(4)+'em;word-spacing:'+(${HANCOM.space_em}-m.sp).toFixed(4)+'em}');
+rules.push('td [data-k="'+k+'"]:last-child{margin-top:'+(-(L-1)).toFixed(4)+'em;top:'+(L-1-shift).toFixed(4)+'em}');});
 var pn=document.body.getAttribute('data-pn');if(pn){pn=JSON.parse(pn);var pm=metrics(pn.font,false),em=pn.pt*25.4/72;
 var y=pn.footer-${HANCOM.pagenum_desc_em}*em-(1+pm.asc-pm.desc)/2*em;rules.push('@page{@'+pn.box+'{padding-top:'+Math.max(0,y).toFixed(3)+'mm;word-spacing:'+(${HANCOM.space_em}-pm.sp).toFixed(4)+'em}}');}
 var s=document.createElement('style');s.textContent=rules.join('\\n');document.head.appendChild(s);})();`;

@@ -6,7 +6,7 @@ skill은 한컴오피스 없이 돈다. 이 폴더의 도구는 개발할 때만
 node tests/oracle/roundtrip.mjs tests/fixtures/doc-long.json long
 ```
 
-- `hancom-open.ps1`: 한컴 COM(`HWPFrame.HwpObject`)으로 HWPX나 HWP를 열고 PDF·HWPX로 다시 저장하고, `GetTextFile("UNICODE")`로 텍스트를 뽑는다. 한컴은 임시 폴더 밖 파일을 열 때 '접근 허용' 창을 띄우므로 `%TEMP%` 아래 복사본만 다룬다.
+- `hancom-open.ps1`: 한컴 COM(`HWPFrame.HwpObject`)으로 HWPX나 HWP를 열고 PDF·HWPX·HWP로 다시 저장하고, `GetTextFile("UNICODE")`로 텍스트를 뽑는다. 한컴은 임시 폴더 밖 파일을 열 때 '접근 허용' 창을 띄우므로 `%TEMP%` 아래 복사본만 다룬다.
 - `compare_pdf.py`: 두 PDF의 줄 기준선 위치, 줄 끝 어절, 쪽별 첫·마지막 줄을 비교한다(PyMuPDF 필요). 같은 높이의 글자 조각은 실제 글자 상자 끝에서 3mm 안에 있을 때만 한 줄로 합친다(표 칸은 따로 남는다).
 - `expected/*.hancom.txt`: 한컴이 읽어 낸 텍스트. 저장소 시험(`tests/run-tests.mjs`)이 한컴 없이 이걸로 비교한다.
 
@@ -21,6 +21,23 @@ node tests/oracle/roundtrip.mjs tests/fixtures/doc-long.json long
 | doc-mixed (2쪽, 영문·숫자·URL, 36행 표) | 2 / 2 | 125·91 / 125·91 | 0 | 같음 | 최대 0.38mm, 평균 0.11mm |
 
 쪽을 넘는 표가 쪽마다 몇 행씩 들어가는지도 같다(doc-long 1쪽 5행, doc-mixed 1쪽 20행). 행 간격은 한컴 4.53mm, 브라우저는 4.49·4.76mm가 섞여 평균 4.52mm이다. 20행을 쌓은 뒤 마지막 행 기준선 차이는 0.09mm였다.
+
+## 채운 양식 렌더러(render-hwpx) 대조 (2026-11-25)
+
+양식을 채운 HWPX를 한컴 2022로 PDF 저장한 것과, `render-hwpx.mjs`로 그린 PDF를 `compare_pdf.py`로 비교했다. 기안문은 문서에 저장된 인쇄 방식(`settings.xml`의 `PrintMethod` = 4) 때문에 한컴 PDF가 0.71배로 줄어 나와서, 그 값을 0으로 바꾼 사본으로 비교했다.
+
+| 문서 | 쪽 | 줄 끝 어절이 다른 줄 | 기준선 차이 |
+|---|---|---|---|
+| 채운 기안문 | 1 / 1 | 0 / 28 | 최대 1.65mm, 평균 0.98mm |
+| 채운 대장 | 1 / 1 | 0 / 33 | 최대 0.56mm, 평균 0.16mm |
+| 대장 변형(머리말, 글상자, 탭) | 1 / 1 | 0 | 최대 0.36mm, 평균 0.2mm |
+| doc-basic / doc-long / doc-mixed를 렌더러로 | 1 / 4 / 2쪽 같음 | 0 / 2 / 0 | 평균 0.15 / 0.17 / 0.11mm |
+
+기안문의 남은 차이는 발신명의·직인 상자 부근에서 생긴다. 떠 있는 개체가 붙은 문단과 글자처럼 취급한 표가 든 줄의 높이 규칙은 아직 정확히 알아내지 못했다.
+
+## HWP 읽기 대조
+
+같은 문서를 한컴 2022가 HWP와 HWPX로 저장한 쌍(`tests/fixtures/hwp/`)과 법령 원본 HWP·HWPX 저장본에서, `readHwp`와 `readHwpx`의 결과(문단, 표, 칸 주소·병합, 하위 표, 하위 글)가 모두 같았다. 시험이 이 비교를 한다.
 
 ## 대조로 찾은 한컴의 동작
 

@@ -139,7 +139,7 @@ const hwpx = buildHwpx(basic);
   ok("html: 표 앞뒤 간격 문단, 표 여백 0", /<p class="tsb"><\/p><table/.test(html) && /<\/table><p class="tsa"><\/p>/.test(html) && /\.tsb\{height:4pt/.test(html) && /\.tsa\{height:8pt/.test(html) && /table\{[^}]*margin:0\}/.test(html));
   // 테두리 0.12mm는 브라우저에서 1픽셀(0.2646mm)로 그려지므로 칸 위아래 여백 0.5mm에서 그 절반을 뺀다
   ok("html: 칸 여백은 테두리 두께만큼 줄임", /td\{border:0\.12mm solid #000;[^}]*padding:0\.368mm 1\.8mm 0\.368mm 1\.8mm\}/.test(html));
-  ok("html: 칸 문단 보정은 위쪽 여백으로(줄 상자가 칸 아래로 삐져나오지 않게)", /td p\[data-k="'\+k\+'"\]\{margin-top:/.test(html) && !/margin-bottom:'\+/.test(html));
+  ok("html: 칸 문단 보정은 위쪽 여백으로(줄 상자가 칸 아래로 삐져나오지 않게)", /td \[data-k="'\+k\+'"\]:last-child\{margin-top:/.test(html) && !/margin-bottom:'\+/.test(html));
   ok("html: 쪽 번호", /@page\{@bottom-center\{content:"- " counter\(page\) " -";font-family:"함초롬돋움";font-size:10pt/.test(html) && /data-pn='/.test(html));
   ok("html: page.number=false면 쪽 번호 없음", !/counter\(page\)/.test(buildHtml(normalize({ page: { number: false }, blocks: [{ type: "para", text: "x" }] }))));
 }
@@ -236,7 +236,7 @@ try {
   ok("sources: HWPX 문단과 표 칸(머리 칸 표시)", hx.units.some((u) => /^S5:\d+$/.test(u.id)) && hx.units.some((u) => u.id === "S5:t1.r1c1" && u.header), JSON.stringify(hx.units.slice(0, 3)));
 
   ok("sources: PDF는 읽지 않고 방법을 알림", throws(() => readSource(put("g.pdf", "%PDF-1.4"), 6), /=== p\.3 ===/));
-  ok("sources: 바이너리 HWP는 아직 못 읽는다고 알림", throws(() => readSource(put("h.hwp", "x"), 6), /HWPX로 저장/));
+  ok("sources: HWP가 아닌 .hwp는 이유를 알림", throws(() => readSource(put("h.hwp", "x"), 6), /OLE 복합 문서가 아닙니다/));
   const cli = spawnSync(process.execPath, [path.join(scripts, "read-sources.mjs"), fx("src/meeting-clova.txt"), path.join(tmp2, "없음.txt"), "--out", path.join(tmp2, "out")], { encoding: "utf8" });
   ok("read-sources: 읽지 못한 파일이 있으면 1, 읽은 것은 남김", cli.status === 1 && /없음\.txt: 파일이 없습니다/.test(cli.stderr) && fs.existsSync(path.join(tmp2, "out", "sources.txt")), cli.stderr);
 } finally {
@@ -462,6 +462,79 @@ const sec0 = (buf) => entry(buf, "Contents/section0.xml");
   } finally {
     fs.rmSync(tmp6, { recursive: true, force: true });
   }
+}
+
+// ---------- 4단계: 바이너리 HWP 읽기 ----------
+// tests/fixtures/hwp/<이름>.hwp와 <이름>.hwpx는 한컴 2022가 같은 문서를 두 형식으로 저장한 쌍(저장자 이름 지움).
+// form1-giannmun.hwp는 국가법령정보센터 원본, .hwpx는 그것을 한컴이 HWPX로 저장한 것
+const { readHwp, readRecords } = await imp("lib/hwp-read.mjs");
+const { readCfb, isCfb } = await imp("lib/cfb.mjs");
+{
+  const shape = (d) => d.blocks.map((b) => (b.type === "table" ? tshape(b) : { p: b.text, sub: b.sub ?? null }));
+  const tshape = (t) => ({ r: t.rowCnt, c: t.colCnt, cells: t.cells.map((c) => [c.row, c.col, c.rowspan, c.colspan, c.text, c.tables.map(tshape)]).sort((x, y) => x[0] - y[0] || x[1] - y[1]) });
+  const pairs = [["hwp/long.hwp", "hwp/long.hwpx"], ["hwp/hdr.hwp", "hwp/hdr.hwpx"], ["hwp/box.hwp", "hwp/box.hwpx"], ["hwp/tab.hwp", "hwp/tab.hwpx"], ["forms/form1-giannmun.hwp", "forms/form1-giannmun.hwpx"]];
+  for (const [a, b] of pairs) {
+    const x = JSON.stringify(shape(readHwp(fs.readFileSync(fx(a))))), y = JSON.stringify(shape(readHwpx(fs.readFileSync(fx(b)))));
+    let i = 0; while (i < x.length && x[i] === y[i]) i++;
+    ok(`hwp: ${a} — 한컴 HWPX 저장본과 문단·표·칸 주소·병합·하위 글이 같음`, x === y, `${x.slice(i - 60, i + 60)} ≠ ${y.slice(i - 60, i + 60)}`);
+  }
+  const lg = readHwp(fs.readFileSync(fx("hwp/long.hwp")));
+  ok("hwp: 여러 쪽·쪽을 넘는 표(doc-long)", textLines(lg).length > 80 && lg.blocks.some((b) => b.type === "table" && b.rowCnt >= 5));
+  ok("hwp: 머리말·글상자 글자는 본문 문단과 따로", readHwp(fs.readFileSync(fx("hwp/hdr.hwp"))).blocks.some((b) => b.sub === "header" && b.text === "한빛시 내부 문서") && readHwp(fs.readFileSync(fx("hwp/box.hwp"))).blocks.some((b) => b.sub === "drawText" && b.text === "접수번호"));
+  ok("hwp: 문단 안 탭", readHwp(fs.readFileSync(fx("hwp/tab.hwp"))).blocks.some((b) => b.text === "회의명:\t{{회의명}}"));
+  const files = readCfb(fs.readFileSync(fx("forms/form1-giannmun.hwp")));
+  ok("cfb: 스트림 목록(FileHeader, DocInfo, BodyText/Section0)", isCfb(fs.readFileSync(fx("forms/form1-giannmun.hwp"))) && ["FileHeader", "DocInfo", "BodyText/Section0"].every((k) => files.has(k)) && files.get("FileHeader").toString("latin1", 0, 17) === "HWP Document File");
+  // 암호·배포용 표시가 있으면 읽지 않고 이유를 알린다(FileHeader 속성 비트를 바꾼 사본으로 시험)
+  const withProps = (bits) => { const b = Buffer.from(fs.readFileSync(fx("forms/form1-giannmun.hwp"))); const i = b.indexOf(Buffer.from("HWP Document File")); b.writeUInt32LE(b.readUInt32LE(i + 36) | bits, i + 36); return b; };
+  ok("hwp: 암호 문서·배포용 문서는 이유를 알리고 멈춤", throws(() => readHwp(withProps(2)), /암호가 걸린/) && throws(() => readHwp(withProps(4)), /배포용/));
+  ok("hwp: 레코드 크기 0xFFF는 다음 4바이트가 실제 크기", (() => { const big = Buffer.alloc(5000, 0x41); const h = Buffer.alloc(8); h.writeUInt32LE(((0xfff << 20) | (1 << 10) | 67) >>> 0, 0); h.writeUInt32LE(big.length, 4); const r = readRecords(Buffer.concat([h, big])); return r.length === 1 && r[0].tag === 67 && r[0].level === 1 && r[0].data.length === 5000; })());
+  const src = readSource(fx("hwp/long.hwp"), 2);
+  ok("sources: .hwp를 원자료로 읽음(HWPX와 같은 조각)", src.kind === "hwp" && JSON.stringify(src.units.map((u) => u.text)) === JSON.stringify(readSource(fx("hwp/long.hwpx"), 2).units.map((u) => u.text)));
+  const dcH = spawnSync(process.execPath, [path.join(scripts, "deliver-check.mjs"), fx("forms/form1-giannmun.hwp")], { encoding: "utf8" });
+  ok("deliver-check: .hwp도 문장 검사", dcH.status === 0 && /# 검사 결과: form1-giannmun\.hwp/.test(dcH.stdout), dcH.stdout + dcH.stderr);
+}
+
+// ---------- 3b: HWPX 그대로 그리기(채운 양식의 PDF) ----------
+const { renderHwpx } = await imp("lib/hwpx-render.mjs");
+const { parseXml, unswitch } = await imp("lib/xml.mjs");
+{
+  const f1 = renderHwpx(fillTemplate(FORM1, opsOf("forms/fill-form1.json")).buf);
+  const body = f1.html.match(/<body[^>]*>([\s\S]*)<script>/)[1];
+  ok("render: 채운 기안문 글자가 들어 있고 보이지 않는 글자(빈 문단 자리표시)가 없음", /한빛시립도서관장/.test(body) && /120,000,000원/.test(body.replace(/<[^>]+>/g, "")) && !body.includes(String.fromCharCode(0x200b)));
+  ok("render: 문단은 div(표를 p 안에 넣으면 HTML 파서가 문단을 끊는다)", !/<p\b/.test(body) && /<div class="para /.test(body));
+  ok("render: 글 앞으로(IN_FRONT_OF_TEXT) 개체는 떠 있게, 글자처럼 취급한 표는 줄 안에", /<div class="float" style="top:3\.965mm;left:87\.496mm/.test(body) && /<span class="inl"><table/.test(body), body.match(/<div class="float"[^>]*>/)?.[0]);
+  ok("render: 떠 있는 개체만 붙은 문단은 빈 줄 한 줄을 그대로 차지", /<div class="para [^"]*"[^>]*min-height:[\d.]+em;[^>]*><div class="float"/.test(body) && !/objonly[^>]*><div class="float"/.test(body));
+  ok("render: 쪽 크기·여백(A4, 위 20mm)", /@page s0\{size:210\.002mm 296\.997mm;margin:19\.999mm/.test(f1.html));
+  ok("render: 표 자체 테두리는 그리지 않고 칸 테두리만", !/<table style="[^"]*border/.test(body) && /<td[^>]*style="border-left:/.test(body));
+  ok("render: 장평·자간 보정(한글은 1em 기준, 숫자·영문은 절반) 경고", /\.c14\{[^}]*letter-spacing:-0\.1em/.test(f1.html) && /\.L14\{letter-spacing:-0\.05em\}/.test(f1.html) && f1.warnings.some((w) => /장평/.test(w)));
+  const lg = renderHwpx(fs.readFileSync(fx("forms/ledger.hwpx")));
+  ok("render: hp:switch는 case 쪽 값(한컴 2022: case 12pt, default 24pt)", /\.p1\{[^}]*padding:0pt 0mm 12pt 0mm/.test(lg.html), lg.html.match(/\.p1\{[^}]*\}/)?.[0]);
+  ok("render: 글자처럼 취급 안 하는 위아래 배치 표는 본문 흐름 안(쪽을 넘김)", /<div class="flow" style="margin-top:0mm;margin-left:0mm;width:170mm"><table/.test(lg.html));
+  ok("render: 머리 행은 thead, 칸 여백에서 테두리 절반을 뺌", /<thead><tr/.test(lg.html) && /padding:0\.369mm 1\.799mm 0\.369mm 1\.799mm/.test(lg.html), lg.html.match(/padding:[^;]*;vertical-align/)?.[0]);
+  const bs = renderHwpx(buildHwpx(normalize(load("doc-basic.json"))));
+  ok("render: 아래 가운데 쪽 번호는 1단계 위치 보정(data-pn)을 씀", /<body data-pn='\{"font":"함초롬돋움","pt":10,"footer":6\.999/.test(bs.html) && /@bottom-center\{content:"- " counter\(page\) " -"/.test(bs.html), bs.html.match(/<body[^>]*>/)?.[0]);
+  ok("render: 필요한 글꼴은 실제로 그리는 글자의 글꼴만", JSON.stringify(bs.fonts.sort()) === JSON.stringify(["함초롬돋움", "함초롬바탕"]), JSON.stringify(bs.fonts));
+  const hdr = renderHwpx(fs.readFileSync(fx("forms/variants/ledger-header.hwpx")));
+  ok("render: 머리말은 쪽마다 되풀이되는 고정 위치로", /<div class="hf" style="top:[-\d.]+mm">.*한빛시 내부 문서/.test(hdr.html));
+  const box = renderHwpx(fs.readFileSync(fx("forms/variants/ledger-textbox.hwpx")));
+  ok("render: 글상자 글자", /<div class="box"[^>]*>.*접수번호/.test(box.html));
+  ok("render: 탭", /회의명:<span class="tab" style="width:[\d.]+mm"><\/span>\{\{회의명\}\}/.test(renderHwpx(fs.readFileSync(fx("forms/variants/ledger-tab.hwpx"))).html));
+  ok("render: 1단계 보정은 글꼴 목록의 첫 글꼴을 잼(목록 통째로 재면 공백 폭이 틀어진다)", /f=cs\.fontFamily\.split\(','\)\[0\]/.test(bs.html));
+  ok("xml: switch는 case 먼저", unswitch(parseXml('<a><hp:switch><hp:case><x v="1"/></hp:case><hp:default><x v="2"/></hp:default></hp:switch></a>').children[0])[0].attrs.v === "1");
+  ok("xml: 짝이 맞지 않으면 멈춤", throws(() => parseXml("<a><b></a>"), /짝이 맞지 않습니다/));
+  if (findBrowser()) {
+    const tmp7 = fs.mkdtempSync(path.join(os.tmpdir(), "hwpx-deliver-render-"));
+    try {
+      const filled = path.join(tmp7, "f.hwpx");
+      fs.writeFileSync(filled, fillTemplate(LEDGER, opsOf("forms/fill-ledger.json")).buf);
+      const r = spawnSync(process.execPath, [path.join(scripts, "render-hwpx.mjs"), filled, "--out", path.join(tmp7, "f.pdf")], { encoding: "utf8" });
+      ok("render-hwpx: 명령줄로 PDF", r.status === 0 && fs.readFileSync(path.join(tmp7, "f.pdf")).subarray(0, 5).toString() === "%PDF-", r.stderr);
+      const h = spawnSync(process.execPath, [path.join(scripts, "render-hwpx.mjs"), fx("forms/form1-giannmun.hwp"), "--out", path.join(tmp7, "x.pdf")], { encoding: "utf8" });
+      ok("render-hwpx: .hwp는 HWPX로 저장해 달라고 알림", h.status === 1 && /HWPX로 저장한 파일/.test(h.stderr));
+    } finally {
+      fs.rmSync(tmp7, { recursive: true, force: true });
+    }
+  } else console.log("(브라우저가 없어 render-hwpx PDF 시험은 건너뜀)");
 }
 
 console.log(`\n${pass} 통과, ${fail} 실패`);

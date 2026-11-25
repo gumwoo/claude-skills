@@ -25,12 +25,14 @@ try {
     [IO.File]::WriteAllText((Join-Path $work "$name.hancom.html"), $html, [Text.UTF8Encoding]::new($false))
     $res.saved_pdf = [bool]$hwp.SaveAs((Join-Path $work "$name.hancom.pdf"), "PDF", "")
     $res.saved_hwpx = [bool]$hwp.SaveAs((Join-Path $work "$name.hancom.hwpx"), "HWPX", "")
+    # 같은 문서의 바이너리 HWP: .hwp 읽기(4단계)를 HWPX 읽기와 대조할 때 쓴다
+    $res.saved_hwp = [bool]$hwp.SaveAs((Join-Path $work "$name.hancom.hwp"), "HWP", "")
   }
 } catch { $res.error = $_.Exception.Message }
 finally {
   if ($hwp) { try { $hwp.Clear(1) | Out-Null; $hwp.Quit() } catch {} ; [void][Runtime.InteropServices.Marshal]::ReleaseComObject($hwp) }
 }
-foreach ($ext in @("hancom.pdf", "hancom.hwpx", "hancom.txt", "hancom.html")) {
+foreach ($ext in @("hancom.pdf", "hancom.hwpx", "hancom.hwp", "hancom.txt", "hancom.html")) {
   $f = Join-Path $work "$name.$ext"
   if ((Test-Path $f) -and ($work -ne $OutDir)) { Copy-Item $f (Join-Path $OutDir "$name.$ext") -Force }
 }

@@ -4,14 +4,15 @@
 //   회의록(클로바노트 등): 발언 번호(1부터)           S1:12, 첫 발언 앞 줄(제목·일시·참석자) S1:h1
 //   텍스트·마크다운: 문단 번호(1부터)                  S2:3
 //   쪽 표시(=== p.3 ===)가 있는 텍스트: 쪽.문단        S2:p3.2
-//   HWPX·DOCX: 문단 번호, 표 칸 t<표>.r<행>c<열>       S3:7, S3:t2.r3c1
+//   HWPX·HWP·DOCX: 문단 번호, 표 칸 t<표>.r<행>c<열>       S3:7, S3:t2.r3c1
 //   XLSX: 시트!셀                                       S4:견적!B3
 //
-// PDF와 바이너리 HWP는 읽지 않는다(오류로 이유를 알린다).
+// PDF는 읽지 않는다(오류로 이유를 알린다). 바이너리 HWP는 암호·배포용 문서만 못 읽는다.
 import fs from "node:fs";
 import path from "node:path";
 import { readZip } from "./zip.mjs";
 import { readHwpx } from "./hwpx-read.mjs";
+import { readHwp } from "./hwp-read.mjs";
 
 const unesc = (s) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d))).replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&amp;/g, "&");
 const clean = (s) => s.replace(/[ \t]+$/gm, "").trim();
@@ -145,8 +146,8 @@ function hwpxCellText(c) {
   return clean(parts.filter(Boolean).join("\n"));
 }
 
-function readHwpxUnits(buf) {
-  const doc = readHwpx(buf);
+// HWPX·HWP 모두 같은 모양(readHwpx, readHwp)으로 읽은 뒤 조각으로
+function hwpDocUnits(doc, kind) {
   const units = [];
   let p = 0, t = 0;
   for (const b of doc.blocks) {
@@ -154,7 +155,7 @@ function readHwpxUnits(buf) {
     t++;
     for (const c of b.cells) { const text = hwpxCellText(c); if (text) units.push({ loc: `t${t}.r${c.row + 1}c${c.col + 1}`, text, header: c.header || undefined }); }
   }
-  return { kind: "hwpx", meta: [], units };
+  return { kind, meta: [], units };
 }
 
 // 최상위 요소를 순서대로 자른다(tags 중 아무거나). 같은 이름이 안에 겹쳐도 깊이로 짝을 맞춘다
@@ -280,12 +281,12 @@ export function readSource(file, n) {
   const buf = fs.readFileSync(file);
   let r;
   if (ext === ".txt" || ext === ".md") r = readPlain(decodeText(buf));
-  else if (ext === ".hwpx") r = readHwpxUnits(buf);
+  else if (ext === ".hwpx") r = hwpDocUnits(readHwpx(buf), "hwpx");
+  else if (ext === ".hwp") r = hwpDocUnits(readHwp(buf), "hwp");
   else if (ext === ".docx") r = readDocxUnits(buf);
   else if (ext === ".xlsx") r = readXlsxUnits(buf);
   else if (ext === ".pdf") throw new Error(`${path.basename(file)}: PDF는 스크립트가 읽지 않습니다. Claude가 PDF를 읽고 쪽마다 "=== p.3 ===" 표시를 붙여 텍스트로 옮긴 뒤(<이름>.pdf.txt) 그 파일을 넣으세요`);
-  else if (ext === ".hwp") throw new Error(`${path.basename(file)}: 바이너리 HWP는 아직 읽지 못합니다. 한컴에서 HWPX로 저장해서 넣거나, Claude가 읽어 텍스트로 옮겨 넣으세요`);
-  else throw new Error(`${path.basename(file)}: 지원하지 않는 형식(${ext || "확장자 없음"}). txt, md, hwpx, docx, xlsx만 읽습니다`);
+  else throw new Error(`${path.basename(file)}: 지원하지 않는 형식(${ext || "확장자 없음"}). txt, md, hwpx, hwp, docx, xlsx만 읽습니다`);
   const id = `S${n}`;
   return { id, file: path.basename(file), path: path.resolve(file), kind: r.kind, meta: r.meta, units: r.units.map((u) => ({ id: `${id}:${u.loc}`, ...u })) };
 }
@@ -294,7 +295,7 @@ export function readSources(files) {
   return { sources: files.map((f, i) => readSource(f, i + 1)) };
 }
 
-const KIND_KO = { transcript: "회의록(발언)", "paged-text": "쪽 표시 텍스트", text: "텍스트", hwpx: "HWPX", docx: "DOCX", xlsx: "XLSX" };
+const KIND_KO = { transcript: "회의록(발언)", "paged-text": "쪽 표시 텍스트", text: "텍스트", hwpx: "HWPX", hwp: "HWP", docx: "DOCX", xlsx: "XLSX" };
 
 // Claude가 읽을 목록: 조각 id와 글자 전체
 export function listing(src) {

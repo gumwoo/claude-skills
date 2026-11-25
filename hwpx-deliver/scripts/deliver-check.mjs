@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 납품 전 검사: 고객 문서에 대화체·자리표시자·내부 메모가 섞였는지, 공문서 표기, 원자료와 숫자가 맞는지, 근거가 붙었는지 본다.
 //
-// 사용: node deliver-check.mjs <doc.json | fill.json | 문서.hwpx> [--sources <sources.json>] [--report <내부 폴더>] [--json]
+// 사용: node deliver-check.mjs <doc.json | fill.json | 문서.hwpx | 문서.hwp> [--sources <sources.json>] [--report <내부 폴더>] [--json]
 //   doc.json: 문서 모델(src로 원자료 조각을 가리킴). --sources를 주면 숫자 대조와 근거 검사를 한다
 //   fill.json: 양식 채우기 값(fill-template.mjs 입력). op마다 넣는 글자를 검사하고 src를 대조한다
 //   문서.hwpx: 이미 만든(또는 양식을 채운) HWPX. 글자 규칙과 구조를 보고, --sources를 주면 숫자를 원자료 전체에서 찾는다
@@ -12,6 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalize, normalizePending } from "./lib/model.mjs";
 import { readHwpx } from "./lib/hwpx-read.mjs";
+import { readHwp } from "./lib/hwp-read.mjs";
 import { unitIndex } from "./lib/sources.mjs";
 import { docUnits, hwpxUnits, fillUnits, textRules, sourceChecks, isLabel, LEVEL_KO, RULE_KO } from "./lib/checks.mjs";
 import { checkHwpx } from "./check-hwpx.mjs";
@@ -30,6 +31,13 @@ export function deliverCheck(file, { sources } = {}) {
       findings.push(...textRules(units));
       if (index) findings.push(...sourceChecks(units, index, { requireSrc: false }));
     }
+    return { kind: "hwpx", findings: sort(findings) };
+  }
+  // 바이너리 HWP: 구조 검사(S1)는 HWPX용이라 하지 않고, 글자 규칙과 원자료 대조만 한다
+  if (/\.hwp$/i.test(file)) {
+    const units = hwpxUnits(readHwp(fs.readFileSync(file)));
+    const findings = textRules(units);
+    if (index) findings.push(...sourceChecks(units, index, { requireSrc: false }));
     return { kind: "hwpx", findings: sort(findings) };
   }
   const json = JSON.parse(stripBom(fs.readFileSync(file, "utf8")));
