@@ -49,9 +49,9 @@ argument-hint: "[check <파일.hwpx|.hwp> [원자료...]]"
    - 회의록에는 음성 인식 오류가 섞여 있다. 같은 대상이 다르게 적히거나(기관·사람 이름), 문맥에 맞지 않는 숫자가 나오면 추측해서 고치지 않는다. 그 내용은 `pending`에 원문 조각 id와 함께 넣고 사용자에게 묻는다. 숫자 대조(N1)는 잘못 인식된 숫자를 그대로 옮겨도 통과한다
 3. doc.json을 임시 디렉터리에 저장하고 빌드한다.
    ```
-   node "${CLAUDE_SKILL_DIR}/scripts/build.mjs" doc.json --out <결과 폴더> --name <파일 이름>
+   node "${CLAUDE_SKILL_DIR}/scripts/build.mjs" doc.json --out <결과 폴더> --name <파일 이름> --work <내부 폴더>/_build
    ```
-   결과 폴더에 `<이름>.hwpx`와 `<이름>.pdf`가 생긴다. `_build/`에는 PDF를 그린 HTML이 남는다. 고객에게는 보내지 않는다. `src`·`calc`·`pending`은 고객 파일에 들어가지 않는다.
+   결과 폴더에는 `<이름>.hwpx`와 `<이름>.pdf`만 생긴다. PDF를 그린 HTML은 `--work` 폴더에 남는다(고객에게 보내지 않는다). `src`·`calc`·`pending`은 고객 파일에 들어가지 않는다. doc.json도 내부 폴더에 둔다.
 4. 납품 전 검사를 돌린다. `--report`에는 결과 폴더와 다른 내부 폴더를 준다.
    ```
    node "${CLAUDE_SKILL_DIR}/scripts/deliver-check.mjs" doc.json --sources <작업 폴더>/sources.json --report <내부 폴더>
@@ -89,8 +89,10 @@ argument-hint: "[check <파일.hwpx|.hwp> [원자료...]]"
    ```
    node "${CLAUDE_SKILL_DIR}/scripts/fill-template.mjs" <양식.hwpx> fill.json --out <결과.hwpx>
    ```
-   "원래보다 N자 길어짐" 경고가 나온 칸은 고정 크기 상자에서 줄이 접히거나 넘칠 수 있다.
-7. 납품 전 검사: `deliver-check.mjs fill.json --sources … --report <내부 폴더>`로 넣은 값과 근거를, `deliver-check.mjs <결과.hwpx>`로 결과 문서 전체를 검사한다.
+   - "원래보다 N자 길어짐" 경고가 나온 칸은 고정 크기 상자에서 줄이 접히거나 넘칠 수 있다.
+   - "채우지 않은 것으로 보이는 곳" 목록이 나오면 하나씩 본다. 서식 비고가 "내용으로 바꾸라"고 한 용어(행정기관명, 직위(직급) 서명 등), 비어 있는 항목 칸, 남은 자리표시자다. 근거가 있으면 채우고, 없으면 `pending`에 넣고 보고에 "양식 그대로 남은 칸"으로 따로 적는다. 납품 전 검사는 이것을 오류로 잡지 못한다
+   - fill.json은 내부 폴더에 둔다
+7. 납품 전 검사: `deliver-check.mjs fill.json --sources … --report <내부 폴더>`로 넣은 값과 근거를, `deliver-check.mjs <결과.hwpx>`로 결과 문서 전체를 검사한다. 구조 검사의 "줄바꿈 캐시(linesegarray)가 있음" 경고는 손대지 않은 양식 문단의 것이라 정상이다(바꾼 문단은 지운다).
 8. 채운 양식을 PDF로 그린다.
    ```
    node "${CLAUDE_SKILL_DIR}/scripts/render-hwpx.mjs" <결과.hwpx> --out <결과.pdf>

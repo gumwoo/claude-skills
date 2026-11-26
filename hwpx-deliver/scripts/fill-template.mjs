@@ -14,7 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { fillTemplate } from "./lib/hwpx-template.mjs";
+import { fillTemplate, leftovers } from "./lib/hwpx-template.mjs";
 import { checkHwpx } from "./check-hwpx.mjs";
 
 const stripBom = (s) => (s.charCodeAt(0) === 0xfeff ? s.slice(1) : s);
@@ -41,6 +41,13 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === fs.realpathSync(proces
   fs.mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
   fs.writeFileSync(out, r.buf);
   for (const l of r.log) console.log(`- ${l}`);
+  // 아직 비어 보이는 곳: 일부러 비운 칸이 아니면 채우거나 사용자에게 묻는다(검사는 이것을 오류로 잡지 못한다)
+  const left = leftovers(fs.readFileSync(tmpl), r.buf);
+  const KO = { placeholder: "자리표시자", marker: "자리표시 문자", "label-inline": "항목 이름 뒤가 비어 있음", "label-cell": "항목 이름 옆 칸이 비어 있음", "guide-term": "양식 용어가 그대로 남음" };
+  if (left.length) {
+    console.log(`채우지 않은 것으로 보이는 곳 ${left.length}개(일부러 비운 칸이 아니면 채우거나 사용자에게 확인):`);
+    for (const x of left) console.log(`  · ${x.at ?? ""} ${KO[x.kind]}: ${x.term ?? x.find ?? x.label ?? x.key ?? ""}`);
+  }
   const chk = checkHwpx(r.buf);
   for (const e of chk.errors) console.log(`구조 오류 [${e.code}] ${e.msg}`);
   console.log(`결과: ${out} (${r.log.length}개 적용, ${chk.errors.length ? `구조 오류 ${chk.errors.length}개` : "구조 오류 없음"})`);

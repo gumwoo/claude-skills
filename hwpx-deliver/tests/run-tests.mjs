@@ -537,5 +537,36 @@ const { parseXml, unswitch } = await imp("lib/xml.mjs");
   } else console.log("(브라우저가 없어 render-hwpx PDF 시험은 건너뜀)");
 }
 
+// ---------- 실사용 시험에서 나온 것 ----------
+{
+  const { leftovers } = await imp("lib/hwpx-template.mjs");
+  const terms = scanTemplate(parseTemplate(FORM1)).filter((x) => x.kind === "guide-term").map((x) => x.term);
+  ok("실사용: 서식 비고의 '용어는 표시하지 아니하고 내용을 적는다' 용어 11개", terms.length === 11 && terms.includes("행정기관명") && terms.includes("직위(직급) 서명") && terms.includes("공개 구분"), JSON.stringify(terms));
+  // 실사용 시험에서 Claude가 본문만 채우고 나머지를 양식 그대로 둔 경우를 재현
+  const partial = fillTemplate(FORM1, [{ delete_row: "T1.r11" }, { at: "T1.r2c1.p5", find: "제목 ", text: "제목  착수 보고" }]).buf;
+  const lp = leftovers(FORM1, partial);
+  ok("실사용: 채운 뒤 남은 양식 용어·빈 항목을 알림(검사가 오류로 잡지 못하는 것)", ["행정기관명", "발신명", "도로명주소", "공개 구분"].every((t) => lp.some((x) => x.kind === "guide-term" && x.term === t)) && lp.some((x) => x.kind === "label-inline" && x.label === "수신") && lp.some((x) => x.kind === "label-cell" && x.label === "협조자"), JSON.stringify(lp.map((x) => x.term ?? x.label)));
+  const lf = leftovers(FORM1, fillTemplate(FORM1, opsOf("forms/fill-form1.json")).buf);
+  ok("실사용: 채운 용어는 다시 알리지 않음, 비고 문장 자체는 빼고 찾음", !lf.some((x) => ["행정기관명", "도로명주소", "홈페이지 주소", "공개 구분"].includes(x.term)) && lf.some((x) => x.term === "공무원의 전자우편주소"));
+  const kk = (t) => facts(t).map((f) => f.key).join(" ");
+  ok("실사용: '2027. 1. 둘째 주'는 연월(숫자 2027이 아님), 날짜는 그대로", kk("착수 보고: 2027. 1. 둘째 주") === "ym:2027-01" && kk("2027. 1. 5.") === "d:2027-01-05" && kk("3.5배") === "q:3.5:배");
+  const yIdx = new Map([["S1:2", { text: "사업 기간은 2027년 1월 5일부터 6월 30일까지", file: "a" }]]);
+  ok("실사용: 연월·연도만 쓴 값은 같은 해 날짜가 원자료에 있으면 근거로 침", sourceChecks(fillUnits([{ at: "P1", text: "착수 보고: 2027. 1. 둘째 주, 2027년 상반기 완료", src: ["S1:2"] }]), yIdx).length === 0);
+  ok("실사용: 다 채운 대장은 남은 곳 없음", leftovers(LEDGER, fillTemplate(LEDGER, opsOf("forms/fill-ledger.json")).buf).length === 0);
+  const tmp8 = fs.mkdtempSync(path.join(os.tmpdir(), "hwpx-deliver-e2e-"));
+  try {
+    const out = path.join(tmp8, "out");
+    build(load("doc-basic.json"), { outDir: out, name: "a", pdf: false });
+    ok("실사용: 빌드 중간 파일(HTML)은 고객 폴더에 두지 않음", JSON.stringify(fs.readdirSync(out)) === JSON.stringify(["a.hwpx"]), JSON.stringify(fs.readdirSync(out)));
+    const r = spawnSync(process.execPath, [path.join(scripts, "build.mjs"), fx("doc-basic.json"), "--out", path.join(tmp8, "o2"), "--name", "b", "--work", path.join(tmp8, "internal", "_build"), "--no-pdf"], { encoding: "utf8" });
+    ok("실사용: --work로 중간 파일 위치를 정함", r.status === 0 && fs.existsSync(path.join(tmp8, "internal", "_build", "b.html")) && !fs.existsSync(path.join(tmp8, "o2", "_build")), r.stderr);
+    fs.writeFileSync(path.join(tmp8, "p.json"), JSON.stringify({ ops: [{ at: "T1.r2c1.p5", find: "제목 ", text: "제목  착수 보고" }] }));
+    const fl = spawnSync(process.execPath, [path.join(scripts, "fill-template.mjs"), fx("forms/form1-giannmun.hwpx"), path.join(tmp8, "p.json"), "--out", path.join(tmp8, "f.hwpx")], { encoding: "utf8" });
+    ok("실사용: fill-template가 채우지 않은 곳을 출력", fl.status === 0 && /채우지 않은 것으로 보이는 곳 \d+개/.test(fl.stdout) && /양식 용어가 그대로 남음: 행정기관명/.test(fl.stdout), fl.stdout);
+  } finally {
+    fs.rmSync(tmp8, { recursive: true, force: true });
+  }
+}
+
 console.log(`\n${pass} 통과, ${fail} 실패`);
 process.exit(fail ? 1 : 0);

@@ -2,7 +2,8 @@
 // 문서 모델(doc.json) → 문서.hwpx + 문서.pdf. 한컴오피스 없이 만든다.
 // PDF는 같은 모델로 그린 HTML을 설치된 Edge·Chrome으로 인쇄해서 만든다.
 //
-// 사용: node build.mjs <doc.json> --out <폴더> [--name 파일이름] [--no-pdf]
+// 사용: node build.mjs <doc.json> --out <폴더> [--name 파일이름] [--work <중간 파일 폴더>] [--no-pdf]
+//   PDF를 그린 HTML(중간 파일)은 --work 폴더에, 주지 않으면 임시 폴더에 둔다. 결과 폴더(고객용)에는 HWPX·PDF만 생긴다
 // 종료 코드: 0 = 성공, 1 = 실패(모델 오류, 글꼴 없음, 브라우저 없음 등)
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -48,14 +49,15 @@ export function printPdf(htmlFile, pdfFile) {
   }
 }
 
-export function build(doc, { outDir, name = "문서", pdf = true }) {
+export function build(doc, { outDir, name = "문서", pdf = true, workDir = null }) {
   const m = normalize(doc);
   const lost = missingFonts(Object.values(m.preset.fonts));
   if (lost.length) throw new Error(`이 PC에 없는 글꼴: ${lost.join(", ")} — 설치하거나 서식의 글꼴을 바꾸세요(대체하면 한컴과 줄·쪽 나눔이 달라집니다)`);
   fs.mkdirSync(outDir, { recursive: true });
   const hwpx = path.join(outDir, `${name}.hwpx`);
   fs.writeFileSync(hwpx, buildHwpx(m));
-  const work = path.join(outDir, "_build");
+  // 중간 파일은 고객 폴더에 두지 않는다(실사용 시험에서 매번 Claude가 옮겨야 했다)
+  const work = workDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "hwpx-deliver-build-"));
   fs.mkdirSync(work, { recursive: true });
   const html = path.join(work, `${name}.html`);
   fs.writeFileSync(html, buildHtml(m));
@@ -70,11 +72,11 @@ export function build(doc, { outDir, name = "문서", pdf = true }) {
 if (process.argv[1] && fileURLToPath(import.meta.url) === fs.realpathSync(process.argv[1])) {
   const args = process.argv.slice(2);
   const opt = (n) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
-  const file = args.find((a, i) => !a.startsWith("--") && !["--out", "--name"].includes(args[i - 1]));
-  if (!file || !opt("--out")) { console.error("사용: node build.mjs <doc.json> --out <폴더> [--name 이름] [--no-pdf]"); process.exit(1); }
+  const file = args.find((a, i) => !a.startsWith("--") && !["--out", "--name", "--work"].includes(args[i - 1]));
+  if (!file || !opt("--out")) { console.error("사용: node build.mjs <doc.json> --out <폴더> [--name 이름] [--work 폴더] [--no-pdf]"); process.exit(1); }
   try {
     const doc = JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/, ""));
-    const r = build(doc, { outDir: opt("--out"), name: opt("--name") ?? path.basename(file).replace(/\.json$/i, ""), pdf: !args.includes("--no-pdf") });
+    const r = build(doc, { outDir: opt("--out"), name: opt("--name") ?? path.basename(file).replace(/\.json$/i, ""), pdf: !args.includes("--no-pdf"), workDir: opt("--work") });
     console.log(`HWPX: ${r.hwpx}${r.pdf ? `\nPDF:  ${r.pdf}` : ""}`);
   } catch (e) {
     console.error(`실패: ${e.message}`);

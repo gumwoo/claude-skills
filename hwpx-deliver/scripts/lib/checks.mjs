@@ -119,7 +119,8 @@ const UNIT_ALIAS = { 퍼센트: "%", 프로: "%", "％": "%", 페이지: "쪽" }
 const UNITS = "원|명|건|개월|개소|개|%|％|퍼센트|일|년|주|회|대|식|시간|분|초|배|차|곳|부|권|쪽|페이지|GB|TB|MB|Mbps|Gbps|㎡|km|kg|톤|가구|세대|종|단계|점";
 const QTY = new RegExp(`(?<![A-Za-z0-9_\\-/.:#])(\\d[\\d,]*(?:\\.\\d+)?(?:\\s*[조억만천백])*(?:\\s+\\d[\\d,]*(?:\\.\\d+)?(?:\\s*[조억만천백])+)*)(?:\\s*(${UNITS}))?`, "g");
 const DATE_YMD = /(?<!\d)((?:19|20)\d{2})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})(?!\d)\s*일?\.?/g;
-const DATE_YM = /(?<!\d)((?:19|20)\d{2})\s*[.년]\s*(\d{1,2})\s*월?(?![\d.])/g;
+// 연월: "2027년 1월", "2027. 1."(공문서 표기, 뒤에 날짜가 이어지지 않을 때). 실사용 시험에서 "2027. 1. 둘째 주"를 숫자 2027로 읽은 오탐이 있었다
+const DATE_YM = /(?<!\d)((?:19|20)\d{2})\s*[.년]\s*(\d{1,2})\s*(?:월|\.)?(?!\s*\d)/g;
 const DATE_MD = /(?<!\d)(\d{1,2})\s*월\s*(\d{1,2})\s*일/g;
 const TIME_AMPM = /(오전|오후)\s*(\d{1,2}):([0-5]\d)(?!\d)/g;
 const TIME = /(?<!\d)([01]?\d|2[0-3]):([0-5]\d)(?!\d)/g;
@@ -154,6 +155,8 @@ function matches(f, pool) {
   if (pool.has(f.key)) return true;
   if (f.key.startsWith("d:")) { const [, , m, d] = f.key.match(/^d:(\d+)-(\d+)-(\d+)$/); return pool.has(`md:${m}-${d}`); }
   if (f.key.startsWith("ym:")) { for (const k of pool) if (k.startsWith(`d:${f.key.slice(3)}-`)) return true; return false; }
+  // 연도만 쓴 경우("2027년 상반기"): 원자료에 같은 해의 날짜나 연월이 있으면 근거로 친다
+  if (f.kind === "qty" && f.unit === "년" && f.value >= 1900 && f.value < 2100) { for (const k of pool) if (k.startsWith(`d:${f.value}-`) || k.startsWith(`ym:${f.value}-`)) return true; }
   if (f.kind === "qty") for (const k of pool) { const [, v, u] = k.split(":"); if (Number(v) === f.value && (!u || !f.unit)) return true; }
   return false;
 }

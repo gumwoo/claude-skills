@@ -94,6 +94,22 @@ export function parseTemplate(buf) {
 const LABELS = /^(수\s*신|\(?경\s*유\)?|제\s*목|일\s*시|장\s*소|참\s*석\s*자|안\s*건|내\s*용|결\s*과|기\s*간|목\s*적|비\s*고)$/;
 const MARKER = /○○+|ㅇㅇ+|△△+|(?<![A-Za-z])(OO+|XX+)(?![A-Za-z])/;
 const GUIDE = /이 난은 서식에 포함하지|작성\s?방법|작성\s?요령|유의\s?사항|기재\s?요령|^\s*※/;
+const GUIDE_TERMS = /용어는?\s*표시하지|내용을\s*(적는다|적습니다|기재)/;
+
+// 채운 뒤 아직 비어 보이는 곳: 결과 문서를 다시 훑어 남은 자리표시·빈 항목 칸과, 양식 비고가 바꾸라고 한 용어가 그대로 남은 곳
+export function leftovers(templateBuf, resultBuf) {
+  const terms = [...new Set(scanTemplate(parseTemplate(templateBuf)).filter((x) => x.kind === "guide-term").map((x) => x.term))];
+  const res = parseTemplate(resultBuf);
+  const out = scanTemplate(res).filter((x) => ["placeholder", "marker", "label-inline", "label-cell"].includes(x.kind));
+  const norm = (s) => s.replace(/\s+/g, "");
+  // 비고 문장 자체(용어를 따옴표로 나열한 문단)는 빼고 찾는다
+  const paras = res.sections.flatMap((s) => s.paras).filter((p) => !GUIDE_TERMS.test(p.text));
+  for (const t of terms) {
+    const hit = paras.find((p) => norm(p.text).includes(norm(t)));
+    if (hit) out.push({ kind: "guide-term", at: hit.id, term: t });
+  }
+  return out;
+}
 
 export function scanTemplate(doc) {
   const out = [];
@@ -106,6 +122,8 @@ export function scanTemplate(doc) {
       const t = p.text.trim();
       if (t && (LABELS.test(t) || /[:：]$/.test(t) || (/\s$/.test(p.text) && t.length <= 10))) out.push({ kind: "label-inline", at: p.id, label: t });
       if (GUIDE.test(p.text)) out.push({ kind: "guide", at: p.id, text: t.slice(0, 40) });
+      // 서식 비고의 "다음 용어는 표시하지 아니하고 그 내용을 적는다" 같은 문장: 따옴표 안 용어는 내용으로 바꿔야 할 자리
+      if (GUIDE_TERMS.test(p.text)) for (const m of p.text.matchAll(/["“]([^"”\n]{1,30})["”]/g)) out.push({ kind: "guide-term", at: p.id, term: m[1] });
     }
     for (const c of s.cells) {
       if (c.name) out.push({ kind: "named-cell", at: c.id, name: c.name });
@@ -137,7 +155,7 @@ export function scanTemplate(doc) {
   return out;
 }
 
-const KIND_KO = { placeholder: "자리표시자", marker: "자리표시 문자", "click-here": "누름틀", "label-inline": "항목 이름 뒤에 적는 칸(추정)", guide: "서식 안내문(제출본에서 지울지 확인)", "named-cell": "이름 붙은 칸", "body-area": "본문 자리(빈 문단)", "label-cell": "항목 이름 옆 빈 칸(추정)", "repeat-rows": "반복 행" };
+const KIND_KO = { "guide-term": "내용으로 바꿔야 할 양식 용어(비고)", placeholder: "자리표시자",marker: "자리표시 문자", "click-here": "누름틀", "label-inline": "항목 이름 뒤에 적는 칸(추정)", guide: "서식 안내문(제출본에서 지울지 확인)", "named-cell": "이름 붙은 칸", "body-area": "본문 자리(빈 문단)", "label-cell": "항목 이름 옆 빈 칸(추정)", "repeat-rows": "반복 행" };
 
 // Claude가 읽을 양식 지도: 주소와 글자, 빈 문단은 묶어서
 export function outline(doc) {
@@ -176,7 +194,7 @@ export function scanText(doc) {
   const out = ["# 양식 지도", "", outline(doc), "", "# 채울 칸 후보", ""];
   for (const x of sug) {
     const where = x.at ?? `${x.table} ${x.from_row}행부터 ${x.count}행`;
-    const detail = x.find ? `"${x.find}"` : x.label ? `"${x.label}"` : x.name != null ? `이름 "${x.name}"` : x.key ? x.key : x.empty ? `빈 문단 ${x.empty}개` : x.cols ? `칸 ${x.cols}개` : x.text ? `"${x.text}"` : "";
+    const detail = x.term ? `"${x.term}"` : x.find ?`"${x.find}"` : x.label ? `"${x.label}"` : x.name != null ? `이름 "${x.name}"` : x.key ? x.key : x.empty ? `빈 문단 ${x.empty}개` : x.cols ? `칸 ${x.cols}개` : x.text ? `"${x.text}"` : "";
     out.push(`- ${where}: ${KIND_KO[x.kind]}${detail ? ` ${detail}` : ""}`);
   }
   if (!sug.length) out.push("- 없음(양식 지도를 보고 직접 정한다)");
